@@ -1,0 +1,7 @@
+{
+  "name": "MedAI Store Manager",
+  "description": "A comprehensive AI-powered pharmacy management system featuring OCR-based medicine entry, stock tracking, patient management, and profit analytics.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
