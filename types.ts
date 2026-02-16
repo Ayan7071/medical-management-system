@@ -51,6 +51,17 @@ export interface Agency {
   address: string;
 }
 
+export interface AgencyBill {
+  id: string;
+  agencyId: string;
+  billNumber: string;
+  date: string;
+  totalAmount: number;
+  paidAmount: number;
+  pendingAmount: number;
+  notes?: string;
+}
+
 export interface BillItem {
   name: string;
   quantity: number;

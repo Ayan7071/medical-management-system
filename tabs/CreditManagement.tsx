@@ -27,7 +27,7 @@ const CreditManagement: React.FC<Props> = ({ credits, patients, onUpdateCredit }
     const patient = patients.find(p => p.id === credit.patientId);
     if (!patient) return;
     
-    const message = `Hello ${patient.name}, this is a reminder from MedAI Pharmacy regarding a pending payment of ₹${credit.amount} from your visit on ${new Date(credit.date).toLocaleDateString()}. Please settle this at your earliest convenience. Thank you!`;
+    const message = `Hello ${patient.name}, this is a reminder from Kranti Medical regarding a pending payment of ₹${credit.amount} from your visit on ${new Date(credit.date).toLocaleDateString()}. Please settle this at your earliest convenience. Thank you!`;
     const encodedMsg = encodeURIComponent(message);
     window.open(`https://wa.me/${patient.phone.replace(/\D/g, '')}?text=${encodedMsg}`, '_blank');
   };

@@ -20,7 +20,7 @@ import {
   ShieldCheck,
   Database
 } from 'lucide-react';
-import { Medicine, Patient, Transaction, Agency, ActiveTab, Credit } from './types';
+import { Medicine, Patient, Transaction, Agency, ActiveTab, Credit, AgencyBill } from './types';
 import Dashboard from './tabs/Dashboard';
 import MedicineManagement from './tabs/MedicineManagement';
 import StockView from './tabs/StockView';
@@ -36,38 +36,44 @@ const App: React.FC = () => {
   const restoreInputRef = useRef<HTMLInputElement>(null);
   
   const [medicines, setMedicines] = useState<Medicine[]>(() => {
-    const saved = localStorage.getItem('medai_medicines');
+    const saved = localStorage.getItem('kranti_medicines');
     return saved ? JSON.parse(saved) : [];
   });
   
   const [patients, setPatients] = useState<Patient[]>(() => {
-    const saved = localStorage.getItem('medai_patients');
+    const saved = localStorage.getItem('kranti_patients');
     return saved ? JSON.parse(saved) : [];
   });
   
   const [transactions, setTransactions] = useState<Transaction[]>(() => {
-    const saved = localStorage.getItem('medai_transactions');
+    const saved = localStorage.getItem('kranti_transactions');
     return saved ? JSON.parse(saved) : [];
   });
   
   const [agencies, setAgencies] = useState<Agency[]>(() => {
-    const saved = localStorage.getItem('medai_agencies');
+    const saved = localStorage.getItem('kranti_agencies');
     return saved ? JSON.parse(saved) : [];
   });
 
   const [credits, setCredits] = useState<Credit[]>(() => {
-    const saved = localStorage.getItem('medai_credits');
+    const saved = localStorage.getItem('kranti_credits');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [agencyBills, setAgencyBills] = useState<AgencyBill[]>(() => {
+    const saved = localStorage.getItem('kranti_agency_bills');
     return saved ? JSON.parse(saved) : [];
   });
 
   useEffect(() => {
-    localStorage.setItem('medai_medicines', JSON.stringify(medicines));
-    localStorage.setItem('medai_patients', JSON.stringify(patients));
-    localStorage.setItem('medai_transactions', JSON.stringify(transactions));
-    localStorage.setItem('medai_agencies', JSON.stringify(agencies));
-    localStorage.setItem('medai_credits', JSON.stringify(credits));
+    localStorage.setItem('kranti_medicines', JSON.stringify(medicines));
+    localStorage.setItem('kranti_patients', JSON.stringify(patients));
+    localStorage.setItem('kranti_transactions', JSON.stringify(transactions));
+    localStorage.setItem('kranti_agencies', JSON.stringify(agencies));
+    localStorage.setItem('kranti_credits', JSON.stringify(credits));
+    localStorage.setItem('kranti_agency_bills', JSON.stringify(agencyBills));
     setLastSaved(new Date().toLocaleTimeString());
-  }, [medicines, patients, transactions, agencies, credits]);
+  }, [medicines, patients, transactions, agencies, credits, agencyBills]);
 
   const handleBackup = () => {
     const data = {
@@ -76,14 +82,15 @@ const App: React.FC = () => {
       transactions,
       agencies,
       credits,
-      version: '1.2',
+      agencyBills,
+      version: '1.3',
       timestamp: new Date().toISOString()
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `medai_vault_${new Date().toISOString().split('T')[0]}.json`;
+    link.download = `kranti_medical_vault_${new Date().toISOString().split('T')[0]}.json`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -105,6 +112,7 @@ const App: React.FC = () => {
         if (data.transactions) setTransactions(data.transactions);
         if (data.agencies) setAgencies(data.agencies);
         if (data.credits) setCredits(data.credits);
+        if (data.agencyBills) setAgencyBills(data.agencyBills);
         alert('Vault restored successfully!');
       } catch (err) {
         alert('Invalid backup file.');
@@ -114,11 +122,12 @@ const App: React.FC = () => {
   };
 
   const handleManualSave = () => {
-    localStorage.setItem('medai_medicines', JSON.stringify(medicines));
-    localStorage.setItem('medai_patients', JSON.stringify(patients));
-    localStorage.setItem('medai_transactions', JSON.stringify(transactions));
-    localStorage.setItem('medai_agencies', JSON.stringify(agencies));
-    localStorage.setItem('medai_credits', JSON.stringify(credits));
+    localStorage.setItem('kranti_medicines', JSON.stringify(medicines));
+    localStorage.setItem('kranti_patients', JSON.stringify(patients));
+    localStorage.setItem('kranti_transactions', JSON.stringify(transactions));
+    localStorage.setItem('kranti_agencies', JSON.stringify(agencies));
+    localStorage.setItem('kranti_credits', JSON.stringify(credits));
+    localStorage.setItem('kranti_agency_bills', JSON.stringify(agencyBills));
     setLastSaved(new Date().toLocaleTimeString());
     alert('Database sync complete. Data is secure.');
   };
@@ -154,10 +163,18 @@ const App: React.FC = () => {
   };
 
   const addAgency = (agn: Agency) => setAgencies(prev => [...prev, agn]);
-  const deleteAgency = (id: string) => setAgencies(prev => prev.filter(a => a.id !== id));
+  const deleteAgency = (id: string) => {
+    setAgencies(prev => prev.filter(a => a.id !== id));
+    setAgencyBills(prev => prev.filter(b => b.agencyId !== id));
+  };
 
   const updateCredit = (id: string, updates: Partial<Credit>) => {
     setCredits(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+  };
+
+  const addAgencyBill = (bill: AgencyBill) => setAgencyBills(prev => [bill, ...prev]);
+  const updateAgencyBill = (id: string, updates: Partial<AgencyBill>) => {
+    setAgencyBills(prev => prev.map(b => b.id === id ? { ...b, ...updates } : b));
   };
 
   const renderContent = () => {
@@ -168,7 +185,7 @@ const App: React.FC = () => {
       case 'patient': return <PatientManagement patients={patients} medicines={medicines} onAddPatient={addPatient} onAddTransaction={addTransaction} />;
       case 'transaction': return <Transactions transactions={transactions} patients={patients} medicines={medicines} />;
       case 'profit': return <ProfitAnalytics transactions={transactions} />;
-      case 'agency': return <AgencyManagement agencies={agencies} medicines={medicines} onAddAgency={addAgency} onDeleteAgency={deleteAgency} onBatchAddMedicines={(meds) => setMedicines(prev => [...prev, ...meds])} />;
+      case 'agency': return <AgencyManagement agencies={agencies} medicines={medicines} agencyBills={agencyBills} onAddAgency={addAgency} onDeleteAgency={deleteAgency} onBatchAddMedicines={(meds) => setMedicines(prev => [...prev, ...meds])} onAddAgencyBill={addAgencyBill} onUpdateAgencyBill={updateAgencyBill} />;
       case 'credit': return <CreditManagement credits={credits} patients={patients} onUpdateCredit={updateCredit} />;
       default: return <Dashboard medicines={medicines} transactions={transactions} patients={patients} />;
     }
@@ -192,7 +209,7 @@ const App: React.FC = () => {
           <div className="bg-blue-600 p-2 rounded-lg text-white">
             <Pill size={24} />
           </div>
-          <span className="font-bold text-xl tracking-tight text-slate-800">MedAI Store</span>
+          <span className="font-bold text-xl tracking-tight text-slate-800">Kranti Medical</span>
         </div>
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {navItems.map((item) => (
