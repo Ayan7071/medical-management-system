@@ -2,13 +2,14 @@
 export interface Medicine {
   id: string;
   name: string;
-  category: string;
-  costPrice: number;
-  mrp: number;
-  stock: number;
-  sold: number;
-  expiryDate: string;
+  category: string; // Added to fix property missing error in Dashboard.tsx
+  costPrice: number; // Cost price per single unit
+  mrp: number; // MRP per single unit
+  stock: number; // Total individual units (tablets/bottles) available
+  sold: number; // Total individual units sold
+  expiryDate: string; // MM/YYYY
   agencyId?: string;
+  unitsPerPackage?: number; // Added for package tracking consistency
 }
 
 export interface Patient {
@@ -23,8 +24,8 @@ export interface Transaction {
   patientId: string;
   medicines: {
     medicineId: string;
-    quantity: number;
-    price: number;
+    quantity: number; // Number of units
+    price: number; // Total price for this line item
   }[];
   totalAmount: number;
   paidAmount: number;
@@ -64,10 +65,11 @@ export interface AgencyBill {
 
 export interface BillItem {
   name: string;
-  quantity: number;
+  quantity: number; // Number of packages (strips/boxes)
+  unitsPerPackage: number; // Added to fix property missing error in AgencyManagement.tsx
   costPrice: number;
   mrp: number;
-  category: string;
+  category: string; // Added to fix property missing error in AgencyManagement.tsx
   expiryDate: string;
 }
 

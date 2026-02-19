@@ -72,7 +72,7 @@ const AgencyManagement: React.FC<Props> = ({
 
   const updateScannedItem = (index: number, field: keyof BillItem, value: string | number) => {
     const updated = [...scannedItems];
-    updated[index] = { ...updated[index], [field]: value };
+    updated[index] = { ...updated[index], [field]: value } as BillItem;
     setScannedItems(updated);
   };
 
@@ -81,23 +81,30 @@ const AgencyManagement: React.FC<Props> = ({
   };
 
   const addNewItemRow = () => {
-    setScannedItems([...scannedItems, { name: '', quantity: 1, costPrice: 0, mrp: 0, category: 'Tablet', expiryDate: new Date().toISOString().split('T')[0] }]);
+    // Added category and unitsPerPackage to comply with updated BillItem interface
+    setScannedItems([...scannedItems, { name: '', quantity: 1, unitsPerPackage: 10, costPrice: 0, mrp: 0, category: 'Tablet', expiryDate: new Date().toISOString().split('T')[0] }]);
   };
 
   const confirmBillEntry = () => {
     if (scannedItems.length === 0) return;
     
-    const newMeds: Medicine[] = scannedItems.map(item => ({
-      id: Math.random().toString(36).substr(2, 9),
-      name: item.name,
-      category: item.category || 'Medicine',
-      costPrice: Number(item.costPrice),
-      mrp: Number(item.mrp),
-      stock: Number(item.quantity),
-      sold: 0,
-      expiryDate: item.expiryDate || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      agencyId: selectedAgencyIdForScan || undefined
-    }));
+    // Correctly map scanned items to Medicine interface and calculate stock as total units
+    const newMeds: Medicine[] = scannedItems.map(item => {
+      const unitsPerPkg = item.unitsPerPackage || 10;
+      return {
+        id: Math.random().toString(36).substr(2, 9),
+        name: item.name,
+        category: item.category || 'Medicine',
+        costPrice: Number(item.costPrice),
+        mrp: Number(item.mrp),
+        unitsPerPackage: unitsPerPkg,
+        // Medicine stock represents total individual units (tablets)
+        stock: Number(item.quantity) * unitsPerPkg,
+        sold: 0,
+        expiryDate: item.expiryDate || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        agencyId: selectedAgencyIdForScan || undefined
+      };
+    });
 
     onBatchAddMedicines(newMeds);
     setScannedItems([]);
@@ -476,7 +483,8 @@ const AgencyManagement: React.FC<Props> = ({
               <thead className="bg-blue-50 border-b border-blue-100 sticky top-0">
                 <tr>
                   <th className="px-6 py-3 text-[10px] font-black text-blue-800 uppercase tracking-widest">Name</th>
-                  <th className="px-6 py-3 text-[10px] font-black text-blue-800 uppercase tracking-widest text-center">Qty</th>
+                  <th className="px-6 py-3 text-[10px] font-black text-blue-800 uppercase tracking-widest text-center">Strips</th>
+                  <th className="px-6 py-3 text-[10px] font-black text-blue-800 uppercase tracking-widest text-center">Units/Pkg</th>
                   <th className="px-6 py-3 text-[10px] font-black text-blue-800 uppercase tracking-widest text-right">Cost (₹)</th>
                   <th className="px-6 py-3 text-[10px] font-black text-blue-800 uppercase tracking-widest text-right">MRP (₹)</th>
                   <th className="px-6 py-3 text-[10px] font-black text-blue-800 uppercase tracking-widest text-center">Expiry</th>
@@ -499,6 +507,14 @@ const AgencyManagement: React.FC<Props> = ({
                         type="number" 
                         value={item.quantity} 
                         onChange={(e) => updateScannedItem(i, 'quantity', parseInt(e.target.value) || 0)}
+                        className="w-16 mx-auto text-center bg-transparent text-slate-600 outline-none"
+                      />
+                    </td>
+                    <td className="px-6 py-3 text-center">
+                      <input 
+                        type="number" 
+                        value={item.unitsPerPackage || 10} 
+                        onChange={(e) => updateScannedItem(i, 'unitsPerPackage', parseInt(e.target.value) || 1)}
                         className="w-16 mx-auto text-center bg-transparent text-slate-600 outline-none"
                       />
                     </td>

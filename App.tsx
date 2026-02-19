@@ -181,7 +181,7 @@ const App: React.FC = () => {
     switch(activeTab) {
       case 'dashboard': return <Dashboard medicines={medicines} transactions={transactions} patients={patients} />;
       case 'medicine': return <MedicineManagement medicines={medicines} agencies={agencies} onAdd={addMedicine} onUpdate={updateMedicine} onDelete={deleteMedicine} />;
-      case 'stock': return <StockView medicines={medicines} onUpdate={updateMedicine} />;
+      case 'stock': return <StockView medicines={medicines} patients={patients} onUpdate={updateMedicine} onAddTransaction={addTransaction} />;
       case 'patient': return <PatientManagement patients={patients} medicines={medicines} onAddPatient={addPatient} onAddTransaction={addTransaction} />;
       case 'transaction': return <Transactions transactions={transactions} patients={patients} medicines={medicines} />;
       case 'profit': return <ProfitAnalytics transactions={transactions} />;

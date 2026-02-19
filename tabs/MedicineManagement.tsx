@@ -1,8 +1,7 @@
 
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Medicine, Agency } from '../types';
-import { Plus, Camera, Loader2, Save, Trash2, Edit2, Sparkles, AlertTriangle, Clock, Search, Filter, Truck, LayoutGrid } from 'lucide-react';
-import { extractMedicineData } from '../services/geminiService';
+import { Plus, Trash2, Edit2, AlertTriangle, Clock, Calculator, Percent } from 'lucide-react';
 
 interface Props {
   medicines: Medicine[];
@@ -14,71 +13,41 @@ interface Props {
 
 const MedicineManagement: React.FC<Props> = ({ medicines, agencies, onAdd, onUpdate, onDelete }) => {
   const [isAdding, setIsAdding] = useState(false);
-  const [isScanning, setIsScanning] = useState(false);
   const [expiryFilter, setExpiryFilter] = useState<'all' | 'expired' | 'soon'>('all');
-  const [agencyFilter, setAgencyFilter] = useState<string>('all');
-  const [categorySearch, setCategorySearch] = useState('');
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const categories = ['Tablet', 'Capsule', 'Syrup', 'Inhaler', 'Injection', 'Cream', 'Drops'];
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
   const [formData, setFormData] = useState({
     name: '',
-    category: '',
+    category: 'Tablet',
+    basePrice: '',
+    gstRate: '12',
     costPrice: '',
     mrp: '',
-    stock: '',
-    expiryDate: '',
+    totalStock: '',
+    unitsPerPackage: '10',
+    expMonth: (new Date().getMonth() + 1).toString().padStart(2, '0'),
+    expYear: (new Date().getFullYear() + 2).toString(),
     agencyId: ''
   });
 
-  const getExpiryStatus = (date: string) => {
+  // Auto-calculate Cost Price Per Unit
+  React.useEffect(() => {
+    const base = parseFloat(formData.basePrice) || 0;
+    const gst = parseFloat(formData.gstRate) || 0;
+    const calculated = base + (base * gst / 100);
+    setFormData(prev => ({ ...prev, costPrice: calculated.toFixed(2) }));
+  }, [formData.basePrice, formData.gstRate]);
+
+  const getExpiryStatus = (expiryStr: string) => {
+    if (!expiryStr.includes('/')) return { label: 'Unknown', color: 'bg-slate-100' };
+    const [m, y] = expiryStr.split('/').map(Number);
     const today = new Date();
-    const expiry = new Date(date);
-    const diff = expiry.getTime() - today.getTime();
-    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
-
-    if (days < 0) return { label: 'Expired', color: 'bg-rose-100 text-rose-700 border-rose-200', icon: AlertTriangle };
-    if (days <= 90) return { label: 'Expiring Soon', color: 'bg-amber-100 text-amber-700 border-amber-200', icon: Clock };
-    return { label: 'Healthy', color: 'bg-emerald-100 text-emerald-700 border-emerald-200', icon: null };
-  };
-
-  const filteredMedicines = useMemo(() => {
-    return medicines.filter(med => {
-      const status = getExpiryStatus(med.expiryDate);
-      const matchesExpiry = expiryFilter === 'expired' ? status.label === 'Expired' :
-                          expiryFilter === 'soon' ? status.label === 'Expiring Soon' : true;
-      const matchesAgency = agencyFilter === 'all' || med.agencyId === agencyFilter;
-      return matchesExpiry && matchesAgency;
-    });
-  }, [medicines, expiryFilter, agencyFilter]);
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setIsScanning(true);
-    try {
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const base64 = (reader.result as string).split(',')[1];
-        const extracted = await extractMedicineData(base64);
-        setFormData(prev => ({
-          ...prev,
-          name: extracted.name || '',
-          category: extracted.category || '',
-          costPrice: extracted.costPrice?.toString() || '',
-          mrp: extracted.mrp?.toString() || '',
-          expiryDate: extracted.expiryDate || '',
-        }));
-        setIsScanning(false);
-        setIsAdding(true);
-      };
-      reader.readAsDataURL(file);
-    } catch (err) {
-      console.error(err);
-      setIsScanning(false);
-    }
+    const expiry = new Date(y, m - 1, 1);
+    if (expiry < today) return { label: 'Expired', color: 'bg-rose-100 text-rose-700' };
+    const threeMonthsAway = new Date();
+    threeMonthsAway.setMonth(threeMonthsAway.getMonth() + 3);
+    if (expiry <= threeMonthsAway) return { label: 'Soon', color: 'bg-amber-100 text-amber-700' };
+    return { label: 'OK', color: 'bg-emerald-100 text-emerald-700' };
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -89,202 +58,138 @@ const MedicineManagement: React.FC<Props> = ({ medicines, agencies, onAdd, onUpd
       category: formData.category,
       costPrice: parseFloat(formData.costPrice),
       mrp: parseFloat(formData.mrp),
-      stock: parseInt(formData.stock),
+      stock: parseInt(formData.totalStock) || 0,
       sold: 0,
-      expiryDate: formData.expiryDate,
-      agencyId: formData.agencyId || undefined
+      expiryDate: `${formData.expMonth}/${formData.expYear}`,
+      agencyId: formData.agencyId || undefined,
+      unitsPerPackage: parseInt(formData.unitsPerPackage) || 1
     };
     onAdd(newMed);
-    setFormData({ name: '', category: '', costPrice: '', mrp: '', stock: '', expiryDate: '', agencyId: '' });
     setIsAdding(false);
+    setFormData(prev => ({ ...prev, name: '', basePrice: '', mrp: '', totalStock: '' }));
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-bold text-slate-800">Medicines</h2>
-            <p className="text-slate-500">Track expiry and manage inventory</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*" className="hidden" />
-            <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 px-4 py-2.5 bg-blue-50 text-blue-600 rounded-xl font-bold hover:bg-blue-100 transition-colors">
-              {isScanning ? <Loader2 className="animate-spin" size={18} /> : <Sparkles size={18} />} AI Scan
-            </button>
-            <button onClick={() => setIsAdding(!isAdding)} className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl font-bold shadow-md hover:bg-blue-700 transition-all">
-              <Plus size={18} /> Add New
-            </button>
-          </div>
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-800">Medicine Master</h2>
+          <p className="text-slate-500">Add products with accurate tax & unit pricing</p>
         </div>
-
-        {/* Agency Tab Switcher */}
-        <div className="bg-white p-1 rounded-2xl border border-slate-200 shadow-sm overflow-x-auto">
-          <div className="flex min-w-max">
-            <button 
-              onClick={() => setAgencyFilter('all')}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${
-                agencyFilter === 'all' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-              }`}
-            >
-              <LayoutGrid size={16} /> All Agencies
-            </button>
-            {agencies.map(a => (
-              <button 
-                key={a.id}
-                onClick={() => setAgencyFilter(a.id)}
-                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${
-                  agencyFilter === a.id ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-                }`}
-              >
-                <Truck size={16} /> {a.name}
-              </button>
-            ))}
-          </div>
-        </div>
+        <button onClick={() => setIsAdding(!isAdding)} className="px-6 py-3 bg-blue-600 text-white rounded-2xl font-bold shadow-lg hover:bg-blue-700 transition-all flex items-center gap-2">
+          <Plus size={20} /> Add New
+        </button>
       </div>
 
       {isAdding && (
-        <div className="bg-white p-8 rounded-3xl border border-blue-100 shadow-xl animate-in fade-in slide-in-from-top-4">
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-600 uppercase">Medicine Name</label>
-              <input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" />
-            </div>
-            
-            <div className="space-y-2 relative">
-              <label className="text-sm font-bold text-slate-600 uppercase">Search Category</label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                <input 
-                  placeholder="Type to search..."
-                  value={categorySearch || formData.category}
-                  onChange={e => {
-                    setCategorySearch(e.target.value);
-                    setFormData({...formData, category: e.target.value});
-                  }}
-                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
-                />
-              </div>
-              {categorySearch && categories.filter(c => c.toLowerCase().includes(categorySearch.toLowerCase())).length > 0 && (
-                <div className="absolute z-20 w-full mt-1 bg-white border rounded-xl shadow-lg max-h-40 overflow-y-auto">
-                  {categories.filter(c => c.toLowerCase().includes(categorySearch.toLowerCase())).map(c => (
-                    <button key={c} type="button" onClick={() => { setFormData({...formData, category: c}); setCategorySearch(''); }} className="w-full text-left px-4 py-2 hover:bg-blue-50 text-sm">{c}</button>
-                  ))}
-                </div>
-              )}
+        <div className="bg-white p-8 rounded-[2rem] border border-blue-100 shadow-xl animate-in fade-in slide-in-from-top-4">
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="md:col-span-2 space-y-1">
+              <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Medicine Name</label>
+              <input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold" placeholder="Enter Full Medicine Name" />
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-600 uppercase">Supplier Agency</label>
-              <select 
-                value={formData.agencyId}
-                onChange={e => setFormData({...formData, agencyId: e.target.value})}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-medium focus:ring-2 focus:ring-blue-500 outline-none"
-              >
-                <option value="">None / Unknown</option>
+            <div className="space-y-1">
+              <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Category</label>
+              <select value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold">
+                <option value="Tablet">Tablet</option>
+                <option value="Capsule">Capsule</option>
+                <option value="Syrup">Syrup</option>
+                <option value="Injection">Injection</option>
+                <option value="Cream">Cream</option>
+                <option value="Drops">Drops</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Total Meds (Qty)</label>
+              <input type="number" required value={formData.totalStock} onChange={e => setFormData({...formData, totalStock: e.target.value})} className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold" placeholder="0" />
+            </div>
+
+            <div className="bg-blue-50/50 p-6 rounded-3xl md:col-span-4 grid grid-cols-1 md:grid-cols-4 gap-6 border border-blue-100/50">
+              <div className="space-y-1">
+                <label className="text-xs font-black text-blue-600 uppercase tracking-widest ml-1 flex items-center gap-1"><Calculator size={12} /> Unit Base Price</label>
+                <input type="number" step="0.01" required value={formData.basePrice} onChange={e => setFormData({...formData, basePrice: e.target.value})} className="w-full px-5 py-4 bg-white border border-blue-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-black text-blue-600" placeholder="0.00" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-black text-blue-600 uppercase tracking-widest ml-1 flex items-center gap-1"><Percent size={12} /> GST %</label>
+                <select value={formData.gstRate} onChange={e => setFormData({...formData, gstRate: e.target.value})} className="w-full px-5 py-4 bg-white border border-blue-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-black text-blue-600">
+                  <option value="5">5%</option>
+                  <option value="12">12%</option>
+                  <option value="18">18%</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Unit Cost (Accurate)</label>
+                <div className="w-full px-5 py-4 bg-slate-100 border border-slate-200 rounded-2xl font-black text-slate-500 flex items-center justify-between">
+                  <span>₹</span>
+                  <span>{formData.costPrice}</span>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-black text-emerald-600 uppercase tracking-widest ml-1">Unit MRP</label>
+                <input type="number" step="0.01" required value={formData.mrp} onChange={e => setFormData({...formData, mrp: e.target.value})} className="w-full px-5 py-4 bg-white border border-emerald-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none font-black text-emerald-600" placeholder="0.00" />
+              </div>
+            </div>
+
+            <div className="md:col-span-2 space-y-1">
+              <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Expiry (MM/YYYY)</label>
+              <div className="flex gap-2">
+                <select value={formData.expMonth} onChange={e => setFormData({...formData, expMonth: e.target.value})} className="flex-1 px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold">
+                  {months.map((m, i) => <option key={m} value={(i+1).toString().padStart(2, '0')}>{m}</option>)}
+                </select>
+                <input type="number" value={formData.expYear} onChange={e => setFormData({...formData, expYear: e.target.value})} className="flex-1 px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold" placeholder="2026" />
+              </div>
+            </div>
+
+            <div className="md:col-span-2 space-y-1">
+              <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Agency</label>
+              <select value={formData.agencyId} onChange={e => setFormData({...formData, agencyId: e.target.value})} className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold">
+                <option value="">Direct / None</option>
                 {agencies.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-600 uppercase">Cost Price</label>
-              <input type="number" step="0.01" required value={formData.costPrice} onChange={e => setFormData({...formData, costPrice: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-600 uppercase">MRP</label>
-              <input type="number" step="0.01" required value={formData.mrp} onChange={e => setFormData({...formData, mrp: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-600 uppercase">Initial Stock</label>
-              <input type="number" required value={formData.stock} onChange={e => setFormData({...formData, stock: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-600 uppercase">Expiry Date</label>
-              <input type="date" required value={formData.expiryDate} onChange={e => setFormData({...formData, expiryDate: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" />
-            </div>
-            <div className="md:col-span-3 flex justify-end gap-3 pt-4 border-t">
-              <button type="button" onClick={() => setIsAdding(false)} className="px-6 py-3 text-slate-500 font-bold hover:text-slate-800 transition-colors">Cancel</button>
-              <button type="submit" className="px-8 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 active:scale-95 transition-all">Save Medicine</button>
+            <div className="md:col-span-4 flex justify-end gap-3 pt-4 border-t border-slate-100">
+              <button type="button" onClick={() => setIsAdding(false)} className="px-8 py-3 text-slate-400 font-bold">Cancel</button>
+              <button type="submit" className="px-12 py-3 bg-slate-900 text-white font-bold rounded-2xl shadow-xl hover:bg-black transition-all">Save Medicine</button>
             </div>
           </form>
         </div>
       )}
 
-      <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
-        <div className="p-4 border-b border-slate-50 flex items-center justify-between">
-           <div className="flex bg-slate-100 p-1 rounded-xl">
-            <button onClick={() => setExpiryFilter('all')} className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${expiryFilter === 'all' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}>All</button>
-            <button onClick={() => setExpiryFilter('expired')} className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${expiryFilter === 'expired' ? 'bg-rose-500 text-white shadow-sm' : 'text-slate-500'}`}>Expired</button>
-            <button onClick={() => setExpiryFilter('soon')} className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${expiryFilter === 'soon' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-500'}`}>Expiring Soon</button>
-          </div>
-          <p className="text-xs font-bold text-slate-400">Total Items: {filteredMedicines.length}</p>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="bg-slate-50/50 border-b border-slate-200">
-                <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Medicine Info</th>
-                <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest text-center">In Stock</th>
-                <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Status & Expiry</th>
-                <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest text-right">Pricing</th>
-                <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
+      <div className="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-sm">
+        <table className="w-full text-left">
+          <thead>
+            <tr className="bg-slate-50 border-b">
+              <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Medicine Name</th>
+              <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">In Stock</th>
+              <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Expiry</th>
+              <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Unit MRP</th>
+              <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {medicines.map(med => (
+              <tr key={med.id} className="hover:bg-slate-50/50 group transition-colors">
+                <td className="px-6 py-4 font-bold text-slate-800">{med.name}</td>
+                <td className="px-6 py-4 text-center">
+                  <span className={`text-sm font-black ${med.stock < 10 ? 'text-rose-600' : 'text-slate-700'}`}>{med.stock} Meds</span>
+                </td>
+                <td className="px-6 py-4">
+                  <span className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase border ${getExpiryStatus(med.expiryDate).color}`}>
+                    {med.expiryDate}
+                  </span>
+                </td>
+                <td className="px-6 py-4 text-right font-black text-emerald-600">₹{med.mrp.toFixed(2)}</td>
+                <td className="px-6 py-4 text-right opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={() => onDelete(med.id)} className="p-2 text-rose-400 hover:text-rose-600"><Trash2 size={16} /></button>
+                </td>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filteredMedicines.map(med => {
-                const status = getExpiryStatus(med.expiryDate);
-                const agency = agencies.find(a => a.id === med.agencyId);
-                return (
-                  <tr key={med.id} className="hover:bg-slate-50/50 transition-colors group">
-                    <td className="px-6 py-4">
-                      <p className="font-bold text-slate-800">{med.name}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <p className="text-[10px] text-slate-500 font-black uppercase tracking-wider">{med.category}</p>
-                        {agency && (
-                          <span className="text-[10px] text-blue-500 font-bold bg-blue-50 px-1.5 py-0.5 rounded">
-                            {agency.name}
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <span className={`px-3 py-1 rounded-xl text-sm font-black ${med.stock === 0 ? 'bg-rose-100 text-rose-600' : 'bg-slate-100 text-slate-700'}`}>
-                        {med.stock}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-col gap-1.5">
-                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase border w-fit ${status.color}`}>
-                          {status.icon && <status.icon size={12} />}
-                          {status.label}
-                        </span>
-                        <p className="text-xs text-slate-500 font-bold ml-1">Exp: {new Date(med.expiryDate).toLocaleDateString()}</p>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <p className="text-sm font-bold text-slate-800">₹{med.mrp}</p>
-                      <p className="text-[10px] text-slate-400 uppercase font-bold">Cost: ₹{med.costPrice}</p>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Edit2 size={16} /></button>
-                        <button onClick={() => onDelete(med.id)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"><Trash2 size={16} /></button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-              {filteredMedicines.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-slate-400 font-medium italic">
-                    No medicines match the selected agency or expiry filter.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
