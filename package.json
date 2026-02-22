@@ -16,6 +16,7 @@
     "lucide-react": "^0.563.0",
     "recharts": "^3.7.0"
   },
+  "engines": { "node": "24.x" },
  "devDependencies": {
   "tailwindcss": "^3.3.3",
   "postcss": "^8.4.0",
