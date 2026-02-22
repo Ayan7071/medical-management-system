@@ -20,15 +20,15 @@ import {
   ShieldCheck,
   Database
 } from 'lucide-react';
-import { Medicine, Patient, Transaction, Agency, ActiveTab, Credit, AgencyBill } from './types';
-import Dashboard from './tabs/Dashboard';
-import MedicineManagement from './tabs/MedicineManagement';
-import StockView from './tabs/StockView';
-import PatientManagement from './tabs/PatientManagement';
-import Transactions from './tabs/Transactions';
-import ProfitAnalytics from './tabs/ProfitAnalytics';
-import AgencyManagement from './tabs/AgencyManagement';
-import CreditManagement from './tabs/CreditManagement';
+import { Medicine, Patient, Transaction, Agency, ActiveTab, Credit, AgencyBill } from '../../types';
+import Dashboard from '../../tabs/Dashboard';
+import MedicineManagement from '../../tabs/MedicineManagement';
+import StockView from '../../tabs/StockView';
+import PatientManagement from '../../tabs/PatientManagement';
+import Transactions from '../../tabs/Transactions';
+import ProfitAnalytics from '../../tabs/ProfitAnalytics';
+import AgencyManagement from '../../tabs/AgencyManagement';
+import CreditManagement from '../../tabs/CreditManagement';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
