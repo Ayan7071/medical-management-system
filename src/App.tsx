@@ -204,7 +204,7 @@ const App: React.FC = () => {
 
   return (
    <div className="min-h-screen bg-slate-50">
-  <div className="flex max-w-7xl mx-auto w-full">
+      <div className="flex max-w-7xl mx-auto w-full">
       <aside className="w-64 bg-white border-r border-slate-200 hidden md:flex flex-col sticky top-0 h-screen no-print">
         <div className="p-6 border-b border-slate-100 flex items-center gap-3">
           <div className="bg-blue-600 p-2 rounded-lg text-white">
@@ -213,7 +213,7 @@ const App: React.FC = () => {
         
           <span className="font-bold text-xl tracking-tight text-slate-800">Kranti Medical</span>
         </div>
-      </div>
+      
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {navItems.map((item) => (
             <button
@@ -284,6 +284,7 @@ const App: React.FC = () => {
           {renderContent()}
         </div>
       </main>
+    </div>
     </div>
   );
 };
