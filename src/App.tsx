@@ -210,8 +210,10 @@ const App: React.FC = () => {
           <div className="bg-blue-600 p-2 rounded-lg text-white">
             <Pill size={24} />
           </div>
+        
           <span className="font-bold text-xl tracking-tight text-slate-800">Kranti Medical</span>
         </div>
+      </div>
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {navItems.map((item) => (
             <button
@@ -259,7 +261,6 @@ const App: React.FC = () => {
             </div>
           </div>
         </div>
-      </div>
       </aside>
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
         <header className="bg-white h-16 border-b border-slate-200 px-8 flex items-center justify-between no-print sticky top-0 z-10">
