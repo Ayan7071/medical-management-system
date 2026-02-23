@@ -203,7 +203,8 @@ const App: React.FC = () => {
   ] as const;
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+   <div className="min-h-screen bg-slate-50">
+  <div className="flex max-w-7xl mx-auto w-full">
       <aside className="w-64 bg-white border-r border-slate-200 hidden md:flex flex-col sticky top-0 h-screen no-print">
         <div className="p-6 border-b border-slate-100 flex items-center gap-3">
           <div className="bg-blue-600 p-2 rounded-lg text-white">
@@ -258,6 +259,7 @@ const App: React.FC = () => {
             </div>
           </div>
         </div>
+      </div>
       </aside>
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
         <header className="bg-white h-16 border-b border-slate-200 px-8 flex items-center justify-between no-print sticky top-0 z-10">
