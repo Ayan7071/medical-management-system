@@ -66,7 +66,7 @@ const Dashboard: React.FC<Props> = ({ medicines, transactions, patients }) => {
         <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
           <h3 className="text-lg font-bold text-slate-800 mb-6">Recent Sales Trend</h3>
           <div className="w-full h-[320px] min-h-[300px]">
-  <ResponsiveContainer width="100%" height="100%">
+ <ResponsiveContainer width="99%" height={320}>
     <LineChart data={salesData}>
       <CartesianGrid 
         strokeDasharray="3 3" 
