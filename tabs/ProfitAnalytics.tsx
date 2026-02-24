@@ -97,18 +97,53 @@ const ProfitAnalytics: React.FC<Props> = ({ transactions }) => {
 
       <div className="bg-white p-8 rounded-2xl border border-slate-100 shadow-sm">
         <h3 className="text-lg font-bold text-slate-800 mb-8 flex items-center gap-2"><TrendingUp size={20} className="text-blue-600" /> Revenue vs Profit Trend</h3>
-        <div className="h-96">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#94a3b8'}} />
-              <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#94a3b8'}} />
-              <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
-              <Area type="monotone" dataKey="revenue" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.05} strokeWidth={2} />
-              <Area type="monotone" dataKey="profit" stroke="#10b981" fill="#10b981" fillOpacity={0.1} strokeWidth={3} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
+        <div className="w-full h-[320px] min-h-[300px]">
+  <ResponsiveContainer width="100%" height="100%">
+    <LineChart data={salesData}>
+      <CartesianGrid 
+        strokeDasharray="3 3" 
+        vertical={false} 
+        stroke="#f1f5f9" 
+      />
+      
+      <XAxis 
+        dataKey="name" 
+        axisLine={false} 
+        tickLine={false} 
+        tick={{ fontSize: 12, fill: '#94a3b8' }} 
+        dy={10} 
+      />
+      
+      <YAxis 
+        axisLine={false} 
+        tickLine={false} 
+        tick={{ fontSize: 12, fill: '#94a3b8' }} 
+      />
+      
+      <Tooltip 
+        contentStyle={{ 
+          backgroundColor: '#fff', 
+          borderRadius: '12px', 
+          border: 'none', 
+          boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' 
+        }}
+        itemStyle={{ 
+          color: '#3b82f6', 
+          fontWeight: 600 
+        }}
+      />
+      
+      <Line 
+        type="monotone" 
+        dataKey="amount" 
+        stroke="#3b82f6" 
+        strokeWidth={3} 
+        dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }} 
+        activeDot={{ r: 6 }} 
+      />
+    </LineChart>
+  </ResponsiveContainer>
+</div>
       </div>
     </div>
   );
