@@ -181,33 +181,33 @@ const StockView: React.FC<Props> = ({ medicines, patients, onUpdate, onAddTransa
         </div>
       </div>
 
-      <div className="bg-white rounded-[3rem] border border-slate-200 overflow-hidden shadow-sm">
+      <div className="table-container">
         <table className="w-full text-left">
           <thead>
-            <tr className="bg-slate-50/80 border-b border-slate-200">
-              <th className="px-10 py-6 text-[11px] font-black text-slate-400 uppercase tracking-widest">Medicine Name</th>
-              <th className="px-10 py-6 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">In Stock</th>
-              <th className="px-10 py-6 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">Mera Profit / Med</th>
-              <th className="px-10 py-6 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">Total Sold</th>
-              <th className="px-10 py-6 text-[11px] font-black text-slate-400 uppercase tracking-widest text-right">Quick Add</th>
+            <tr className="table-head">
+              <th className="table-th">Medicine Name</th>
+              <th className="table-th text-center">In Stock</th>
+              <th className="table-th text-center">Mera Profit / Med</th>
+              <th className="table-th text-center">Total Sold</th>
+              <th className="table-th text-right">Quick Add</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {filteredMedicines.map(med => (
-              <tr key={med.id} className="hover:bg-slate-50/50 transition-all">
-                <td className="px-10 py-6"><p className="text-lg font-black text-slate-800">{med.name}</p></td>
-                <td className="px-10 py-6 text-center">
+              <tr key={med.id} className="table-row">
+                <td className="table-td"><p className="text-lg font-bold text-slate-800">{med.name}</p></td>
+                <td className="table-td text-center">
                   <p className={`text-xl font-black ${med.stock < 10 ? 'text-rose-600' : 'text-slate-800'}`}>{med.stock}</p>
                 </td>
-                <td className="px-10 py-6 text-center">
-                  <span className="text-sm font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-xl border border-emerald-100">
+                <td className="table-td text-center">
+                  <span className="badge badge-success border border-emerald-100">
                     ₹{(med.mrp - med.costPrice).toFixed(2)}
                   </span>
                 </td>
-                <td className="px-10 py-6 text-center">
-                  <span className="text-lg font-black text-blue-600">{med.sold} Sold</span>
+                <td className="table-td text-center">
+                  <span className="text-lg font-bold text-blue-600">{med.sold} Sold</span>
                 </td>
-                <td className="px-10 py-6 text-right">
+                <td className="table-td text-right">
                   <button onClick={() => onUpdate(med.id, { stock: med.stock + 1 })} className="p-3 text-emerald-600 bg-emerald-50 rounded-2xl hover:bg-emerald-600 hover:text-white transition-all">
                     <Plus size={24} />
                   </button>

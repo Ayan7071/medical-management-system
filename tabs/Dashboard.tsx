@@ -49,7 +49,7 @@ const Dashboard: React.FC<Props> = ({ medicines, transactions, patients }) => {
           { label: 'Total Patients', value: patients.length, icon: Users, color: 'text-amber-600', bg: 'bg-amber-50' },
           { label: 'Out of Stock', value: stats.outOfStock, icon: AlertCircle, color: 'text-rose-600', bg: 'bg-rose-50' },
         ].map((item, i) => (
-          <div key={i} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-start justify-between">
+          <div key={i} className="stat-card">
             <div>
               <p className="text-sm font-medium text-slate-500">{item.label}</p>
               <h3 className="text-2xl font-bold text-slate-800 mt-1">{item.value}</h3>
@@ -63,59 +63,26 @@ const Dashboard: React.FC<Props> = ({ medicines, transactions, patients }) => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Sales Chart */}
-        <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+        <div className="lg:col-span-2 card">
           <h3 className="text-lg font-bold text-slate-800 mb-6">Recent Sales Trend</h3>
-          <div className="w-full h-[320px] min-h-[300px]">
- <ResponsiveContainer width="99%" height={320}>
-    <LineChart data={salesData}>
-      <CartesianGrid 
-        strokeDasharray="3 3" 
-        vertical={false} 
-        stroke="#f1f5f9" 
-      />
-      
-      <XAxis 
-        dataKey="name" 
-        axisLine={false} 
-        tickLine={false} 
-        tick={{ fontSize: 12, fill: '#94a3b8' }} 
-        dy={10} 
-      />
-      
-      <YAxis 
-        axisLine={false} 
-        tickLine={false} 
-        tick={{ fontSize: 12, fill: '#94a3b8' }} 
-      />
-      
-      <Tooltip 
-        contentStyle={{ 
-          backgroundColor: '#fff', 
-          borderRadius: '12px', 
-          border: 'none', 
-          boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' 
-        }}
-        itemStyle={{ 
-          color: '#3b82f6', 
-          fontWeight: 600 
-        }}
-      />
-      
-      <Line 
-        type="monotone" 
-        dataKey="amount" 
-        stroke="#3b82f6" 
-        strokeWidth={3} 
-        dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }} 
-        activeDot={{ r: 6 }} 
-      />
-    </LineChart>
-  </ResponsiveContainer>
-</div>
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={salesData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#fff', borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                  itemStyle={{ color: '#3b82f6', fontWeight: 600 }}
+                />
+                <Line type="monotone" dataKey="amount" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
         </div>
 
         {/* Quick Inventory Summary */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+        <div className="card">
           <h3 className="text-lg font-bold text-slate-800 mb-6">Stock Status</h3>
           <div className="space-y-4">
             {medicines.slice(0, 5).map(med => (

@@ -1,9 +1,21 @@
 /** @type {import('tailwindcss').Config} */
-module.exports = {
+export default {
   content: [
     "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx,vue,html}" // apne project ke files ke according adjust karo
+    "./src/**/*.{js,ts,jsx,tsx}",
+    "./tabs/**/*.{js,ts,jsx,tsx}",
+    "./App.tsx",
   ],
-  theme: { extend: {} },
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['Inter', 'sans-serif'],
+      },
+      borderRadius: {
+        '3xl': '1.5rem',
+        '4xl': '2rem',
+      }
+    },
+  },
   plugins: [],
 }

@@ -20,15 +20,15 @@ import {
   ShieldCheck,
   Database
 } from 'lucide-react';
-import { Medicine, Patient, Transaction, Agency, ActiveTab, Credit, AgencyBill } from '../../types';
-import Dashboard from '../../tabs/Dashboard';
-import MedicineManagement from '../../tabs/MedicineManagement';
-import StockView from '../../tabs/StockView';
-import PatientManagement from '../../tabs/PatientManagement';
-import Transactions from '../../tabs/Transactions';
-import ProfitAnalytics from '../../tabs/ProfitAnalytics';
-import AgencyManagement from '../../tabs/AgencyManagement';
-import CreditManagement from '../../tabs/CreditManagement';
+import { Medicine, Patient, Transaction, Agency, ActiveTab, Credit, AgencyBill } from './types';
+import Dashboard from './tabs/Dashboard';
+import MedicineManagement from './tabs/MedicineManagement';
+import StockView from './tabs/StockView';
+import PatientManagement from './tabs/PatientManagement';
+import Transactions from './tabs/Transactions';
+import ProfitAnalytics from './tabs/ProfitAnalytics';
+import AgencyManagement from './tabs/AgencyManagement';
+import CreditManagement from './tabs/CreditManagement';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
@@ -216,11 +216,7 @@ const App: React.FC = () => {
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
-                activeTab === item.id 
-                  ? 'bg-blue-50 text-blue-600 font-semibold shadow-sm' 
-                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
-              }`}
+              className={`sidebar-link ${activeTab === item.id ? 'sidebar-link-active' : ''}`}
             >
               <item.icon size={20} />
               {item.label}

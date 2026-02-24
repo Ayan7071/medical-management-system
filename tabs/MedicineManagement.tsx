@@ -76,7 +76,7 @@ const MedicineManagement: React.FC<Props> = ({ medicines, agencies, onAdd, onUpd
           <h2 className="text-2xl font-bold text-slate-800">Medicine Master</h2>
           <p className="text-slate-500">Add products with accurate tax & unit pricing</p>
         </div>
-        <button onClick={() => setIsAdding(!isAdding)} className="px-6 py-3 bg-blue-600 text-white rounded-2xl font-bold shadow-lg hover:bg-blue-700 transition-all flex items-center gap-2">
+        <button onClick={() => setIsAdding(!isAdding)} className="btn-primary py-3 px-6 shadow-lg">
           <Plus size={20} /> Add New
         </button>
       </div>
@@ -85,13 +85,13 @@ const MedicineManagement: React.FC<Props> = ({ medicines, agencies, onAdd, onUpd
         <div className="bg-white p-8 rounded-[2rem] border border-blue-100 shadow-xl animate-in fade-in slide-in-from-top-4">
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="md:col-span-2 space-y-1">
-              <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Medicine Name</label>
-              <input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold" placeholder="Enter Full Medicine Name" />
+              <label className="label-caps">Medicine Name</label>
+              <input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="input-field" placeholder="Enter Full Medicine Name" />
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Category</label>
-              <select value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold">
+              <label className="label-caps">Category</label>
+              <select value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} className="input-field">
                 <option value="Tablet">Tablet</option>
                 <option value="Capsule">Capsule</option>
                 <option value="Syrup">Syrup</option>
@@ -103,8 +103,8 @@ const MedicineManagement: React.FC<Props> = ({ medicines, agencies, onAdd, onUpd
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Total Meds (Qty)</label>
-              <input type="number" required value={formData.totalStock} onChange={e => setFormData({...formData, totalStock: e.target.value})} className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold" placeholder="0" />
+              <label className="label-caps">Total Meds (Qty)</label>
+              <input type="number" required value={formData.totalStock} onChange={e => setFormData({...formData, totalStock: e.target.value})} className="input-field" placeholder="0" />
             </div>
 
             <div className="bg-blue-50/50 p-6 rounded-3xl md:col-span-4 grid grid-cols-1 md:grid-cols-4 gap-6 border border-blue-100/50">
@@ -159,31 +159,31 @@ const MedicineManagement: React.FC<Props> = ({ medicines, agencies, onAdd, onUpd
         </div>
       )}
 
-      <div className="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-sm">
+      <div className="table-container">
         <table className="w-full text-left">
           <thead>
-            <tr className="bg-slate-50 border-b">
-              <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Medicine Name</th>
-              <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">In Stock</th>
-              <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Expiry</th>
-              <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Unit MRP</th>
-              <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
+            <tr className="table-head">
+              <th className="table-th">Medicine Name</th>
+              <th className="table-th text-center">In Stock</th>
+              <th className="table-th">Expiry</th>
+              <th className="table-th text-right">Unit MRP</th>
+              <th className="table-th text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {medicines.map(med => (
-              <tr key={med.id} className="hover:bg-slate-50/50 group transition-colors">
-                <td className="px-6 py-4 font-bold text-slate-800">{med.name}</td>
-                <td className="px-6 py-4 text-center">
+              <tr key={med.id} className="table-row">
+                <td className="table-td font-bold text-slate-800">{med.name}</td>
+                <td className="table-td text-center">
                   <span className={`text-sm font-black ${med.stock < 10 ? 'text-rose-600' : 'text-slate-700'}`}>{med.stock} Meds</span>
                 </td>
-                <td className="px-6 py-4">
+                <td className="table-td">
                   <span className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase border ${getExpiryStatus(med.expiryDate).color}`}>
                     {med.expiryDate}
                   </span>
                 </td>
-                <td className="px-6 py-4 text-right font-black text-emerald-600">₹{med.mrp.toFixed(2)}</td>
-                <td className="px-6 py-4 text-right opacity-0 group-hover:opacity-100 transition-opacity">
+                <td className="table-td text-right font-black text-emerald-600">₹{med.mrp.toFixed(2)}</td>
+                <td className="table-td text-right opacity-0 group-hover:opacity-100 transition-opacity">
                   <button onClick={() => onDelete(med.id)} className="p-2 text-rose-400 hover:text-rose-600"><Trash2 size={16} /></button>
                 </td>
               </tr>
