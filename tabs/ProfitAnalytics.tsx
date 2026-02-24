@@ -98,7 +98,7 @@ const ProfitAnalytics: React.FC<Props> = ({ transactions }) => {
       <div className="bg-white p-8 rounded-2xl border border-slate-100 shadow-sm">
         <h3 className="text-lg font-bold text-slate-800 mb-8 flex items-center gap-2"><TrendingUp size={20} className="text-blue-600" /> Revenue vs Profit Trend</h3>
         <div className="h-96">
-          <ResponsiveContainer width="100%" height="100%">
+         <ResponsiveContainer width="99%" height={320}>
             <AreaChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
               <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#94a3b8'}} />
