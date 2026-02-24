@@ -65,20 +65,53 @@ const Dashboard: React.FC<Props> = ({ medicines, transactions, patients }) => {
         {/* Sales Chart */}
         <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
           <h3 className="text-lg font-bold text-slate-800 mb-6">Recent Sales Trend</h3>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={salesData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#fff', borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                  itemStyle={{ color: '#3b82f6', fontWeight: 600 }}
-                />
-                <Line type="monotone" dataKey="amount" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+          <div className="w-full h-[320px] min-h-[300px]">
+  <ResponsiveContainer width="100%" height="100%">
+    <LineChart data={salesData}>
+      <CartesianGrid 
+        strokeDasharray="3 3" 
+        vertical={false} 
+        stroke="#f1f5f9" 
+      />
+      
+      <XAxis 
+        dataKey="name" 
+        axisLine={false} 
+        tickLine={false} 
+        tick={{ fontSize: 12, fill: '#94a3b8' }} 
+        dy={10} 
+      />
+      
+      <YAxis 
+        axisLine={false} 
+        tickLine={false} 
+        tick={{ fontSize: 12, fill: '#94a3b8' }} 
+      />
+      
+      <Tooltip 
+        contentStyle={{ 
+          backgroundColor: '#fff', 
+          borderRadius: '12px', 
+          border: 'none', 
+          boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' 
+        }}
+        itemStyle={{ 
+          color: '#3b82f6', 
+          fontWeight: 600 
+        }}
+      />
+      
+      <Line 
+        type="monotone" 
+        dataKey="amount" 
+        stroke="#3b82f6" 
+        strokeWidth={3} 
+        dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }} 
+        activeDot={{ r: 6 }} 
+      />
+    </LineChart>
+  </ResponsiveContainer>
+</div>
         </div>
 
         {/* Quick Inventory Summary */}
