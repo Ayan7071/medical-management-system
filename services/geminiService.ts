@@ -3,7 +3,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { BillItem } from "../types";
 
 // Always use process.env.API_KEY directly as a named parameter
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const ai = new GoogleGenAI({  apiKey: import.meta.env.VITE_GEMINI_API_KEY });
 
 export const extractMedicineData = async (base64Image: string): Promise<Partial<BillItem>> => {
   const response = await ai.models.generateContent({
