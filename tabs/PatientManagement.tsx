@@ -1,22 +1,26 @@
 
 import React, { useState, useMemo } from 'react';
-import { Patient, Medicine, Transaction } from '../types';
+import { Patient, Medicine, Transaction, Credit } from '../types';
 import { Search, ShoppingCart, Trash2, Users, IndianRupee, Minus, Plus } from 'lucide-react';
 
 interface Props {
   patients: Patient[];
   medicines: Medicine[];
+  credits: Credit[];
   onAddPatient: (p: Patient) => void;
+  onDeletePatient: (id: string) => void;
   onAddTransaction: (t: Transaction) => void;
 }
 
-const PatientManagement: React.FC<Props> = ({ patients, medicines, onAddPatient, onAddTransaction }) => {
-  const [activeView, setActiveView] = useState<'list' | 'new-sale'>('list');
+const PatientManagement: React.FC<Props> = ({ patients, medicines, credits, onAddPatient, onDeletePatient, onAddTransaction }) => {
+  const [activeView, setActiveView] = useState<'list' | 'new-sale' | 'details'>('list');
   const [searchPatient, setSearchPatient] = useState('');
   const [medSearch, setMedSearch] = useState('');
   const [selectedPatientId, setSelectedPatientId] = useState('');
   const [cart, setCart] = useState<{medicineId: string, quantity: number}[]>([]);
   const [newPatientData, setNewPatientData] = useState({ name: '', phone: '' });
+  const [paidAmount, setPaidAmount] = useState<string>('');
+  const [isCreditSale, setIsCreditSale] = useState(false);
 
   const filteredMedicines = useMemo(() => 
     medicines.filter(m => m.name.toLowerCase().includes(medSearch.toLowerCase()))
@@ -69,22 +73,40 @@ const PatientManagement: React.FC<Props> = ({ patients, medicines, onAddPatient,
       return { medicineId: item.medicineId, quantity: item.quantity, price: linePrice };
     });
 
+    const paid = parseFloat(paidAmount) || 0;
+    const credit = isCreditSale ? Math.max(0, totalAmount - paid) : 0;
+
     onAddTransaction({
       id: Math.random().toString(36).substr(2, 9),
       patientId: selectedPatientId,
       medicines: saleMeds,
       totalAmount,
-      paidAmount: totalAmount,
-      creditAmount: 0,
+      paidAmount: isCreditSale ? paid : totalAmount,
+      creditAmount: credit,
       totalCost,
       profit: totalAmount - totalCost,
-      date: new Date().toISOString()
+      date: new Date().toISOString(),
+      isCredit: isCreditSale && credit > 0
     });
     setCart([]);
     setSelectedPatientId('');
+    setPaidAmount('');
+    setIsCreditSale(false);
     setActiveView('list');
-    alert('Sale completed!');
+    alert(isCreditSale ? `Sale completed with ₹${credit} credit!` : 'Sale completed!');
   };
+
+  const selectedPatient = useMemo(() => 
+    patients.find(p => p.id === selectedPatientId)
+  , [patients, selectedPatientId]);
+
+  const patientCredits = useMemo(() => 
+    credits.filter(c => c.patientId === selectedPatientId)
+  , [credits, selectedPatientId]);
+
+  const totalPendingCredit = useMemo(() => 
+    patientCredits.filter(c => c.status === 'pending').reduce((acc, c) => acc + c.amount, 0)
+  , [patientCredits]);
 
   return (
     <div className="space-y-6">
@@ -103,18 +125,51 @@ const PatientManagement: React.FC<Props> = ({ patients, medicines, onAddPatient,
               <input placeholder="Search patient..." value={searchPatient} onChange={e => setSearchPatient(e.target.value)} className="w-full pl-12 pr-4 py-4 bg-white border border-slate-200 rounded-2xl shadow-sm" />
             </div>
             <div className="bg-white rounded-2xl border divide-y overflow-hidden shadow-sm">
-              {patients.filter(p => p.name.toLowerCase().includes(searchPatient.toLowerCase())).map(p => (
-                <div key={p.id} className="p-5 flex items-center justify-between hover:bg-slate-50">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-600"><Users size={24} /></div>
-                    <div>
-                      <p className="font-bold text-slate-800 text-lg">{p.name}</p>
-                      <p className="text-sm text-slate-500">{p.phone}</p>
+              {patients.filter(p => p.name.toLowerCase().includes(searchPatient.toLowerCase())).map(p => {
+                const pending = credits.filter(c => c.patientId === p.id && c.status === 'pending').reduce((acc, c) => acc + c.amount, 0);
+                return (
+                  <div key={p.id} className="p-5 flex items-center justify-between hover:bg-slate-50">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-600"><Users size={24} /></div>
+                      <div>
+                        <p className="font-bold text-slate-800 text-lg">{p.name}</p>
+                        <p className="text-sm text-slate-500">{p.phone}</p>
+                        {pending > 0 && (
+                          <p className="text-xs font-black text-rose-600 uppercase mt-1">Udhari: ₹{pending}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => { setSelectedPatientId(p.id); setActiveView('details'); }} className="text-slate-600 font-bold px-4 py-2 border border-slate-200 rounded-xl hover:bg-slate-100 transition-all">History</button>
+                      <button onClick={() => { setSelectedPatientId(p.id); setActiveView('new-sale'); }} className="text-blue-600 font-bold px-6 py-2 border border-blue-100 rounded-xl hover:bg-blue-600 hover:text-white transition-all">New Sale</button>
+                      <button 
+                        type="button"
+                        onClick={(e) => {
+                          console.log("Trash button clicked for patient:", p.id);
+                          e.stopPropagation();
+                          onDeletePatient(p.id);
+                        }} 
+                        className="p-2 text-rose-400 hover:text-rose-600 transition-all active:scale-90 cursor-pointer relative z-10"
+                        title="Delete Patient"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={(e) => {
+                          console.log("Minus button clicked for patient:", p.id);
+                          e.stopPropagation();
+                          onDeletePatient(p.id);
+                        }} 
+                        className="p-2 text-amber-400 hover:text-amber-600 transition-all active:scale-90 cursor-pointer relative z-10"
+                        title="Quick Remove"
+                      >
+                        <Minus size={18} />
+                      </button>
                     </div>
                   </div>
-                  <button onClick={() => { setSelectedPatientId(p.id); setActiveView('new-sale'); }} className="text-blue-600 font-bold px-6 py-2 border border-blue-100 rounded-xl hover:bg-blue-600 hover:text-white transition-all">Select</button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
           <div className="bg-white p-8 rounded-[2rem] border shadow-sm h-fit">
@@ -124,6 +179,62 @@ const PatientManagement: React.FC<Props> = ({ patients, medicines, onAddPatient,
               <input required placeholder="Phone Number" value={newPatientData.phone} onChange={e => setNewPatientData({...newPatientData, phone: e.target.value})} className="w-full px-5 py-4 bg-slate-50 border rounded-2xl" />
               <button type="submit" className="w-full py-4 bg-slate-800 text-white font-bold rounded-2xl shadow-xl">Add Patient</button>
             </form>
+          </div>
+        </div>
+      ) : activeView === 'details' ? (
+        <div className="space-y-8 animate-in fade-in duration-300">
+          <div className="bg-white p-8 rounded-[2.5rem] border shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+            <div className="flex items-center gap-6">
+              <div className="w-20 h-20 rounded-3xl bg-blue-50 flex items-center justify-center text-blue-600 shadow-inner">
+                <Users size={40} />
+              </div>
+              <div>
+                <h3 className="text-3xl font-black text-slate-800">{selectedPatient?.name}</h3>
+                <p className="text-slate-500 font-bold text-lg">{selectedPatient?.phone}</p>
+              </div>
+            </div>
+            <div className="bg-rose-50 border border-rose-100 p-6 rounded-3xl text-center min-w-[200px]">
+              <p className="text-[10px] font-black text-rose-400 uppercase tracking-widest mb-1">Total Pending Udhari</p>
+              <p className="text-3xl font-black text-rose-600">₹{totalPendingCredit.toLocaleString()}</p>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-[2.5rem] border overflow-hidden shadow-sm">
+            <div className="p-6 border-b bg-slate-50/50">
+              <h4 className="font-black text-slate-400 uppercase tracking-widest text-xs">Udhari (Credit) History</h4>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-slate-50/50">
+                    <th className="px-8 py-5 text-xs font-black text-slate-400 uppercase">Date</th>
+                    <th className="px-8 py-5 text-xs font-black text-slate-400 uppercase">Amount</th>
+                    <th className="px-8 py-5 text-xs font-black text-slate-400 uppercase">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {patientCredits.map(credit => (
+                    <tr key={credit.id} className="hover:bg-slate-50/30 transition-colors">
+                      <td className="px-8 py-5 font-bold text-slate-600">
+                        {new Date(credit.date).toLocaleDateString()}
+                        <p className="text-[10px] text-slate-400 mt-0.5">{new Date(credit.date).toLocaleTimeString()}</p>
+                      </td>
+                      <td className="px-8 py-5 font-black text-slate-800 text-lg">₹{credit.amount}</td>
+                      <td className="px-8 py-5">
+                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase border ${credit.status === 'pending' ? 'bg-amber-50 text-amber-600 border-amber-100' : 'bg-emerald-50 text-emerald-600 border-emerald-100'}`}>
+                          {credit.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                  {patientCredits.length === 0 && (
+                    <tr>
+                      <td colSpan={3} className="px-8 py-16 text-center text-slate-400 font-bold italic">No credit history found for this patient.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       ) : (
@@ -181,6 +292,32 @@ const PatientManagement: React.FC<Props> = ({ patients, medicines, onAddPatient,
               </div>
             </div>
             <div className="pt-6 border-t space-y-6">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-bold text-slate-600">Payment Mode</label>
+                  <button 
+                    onClick={() => setIsCreditSale(!isCreditSale)}
+                    className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase transition-all ${isCreditSale ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'}`}
+                  >
+                    {isCreditSale ? 'Credit (Udhari)' : 'Full Paid'}
+                  </button>
+                </div>
+                
+                {isCreditSale && (
+                  <div className="animate-in slide-in-from-top-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Amount Paid Now (₹)</label>
+                    <input 
+                      type="number" 
+                      value={paidAmount} 
+                      onChange={e => setPaidAmount(e.target.value)} 
+                      className="w-full px-4 py-3 bg-slate-50 border rounded-xl font-bold"
+                      placeholder="0.00"
+                    />
+                    <p className="text-[10px] text-rose-500 font-bold mt-1">Remaining ₹{Math.max(0, cartTotal - (parseFloat(paidAmount) || 0))} will be added to Udhari.</p>
+                  </div>
+                )}
+              </div>
+
               <div className="flex items-center justify-between text-2xl font-black text-slate-800 px-2">
                 <span>Payable:</span>
                 <span className="text-emerald-600">₹{cartTotal.toLocaleString()}</span>

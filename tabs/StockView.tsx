@@ -1,16 +1,17 @@
 
 import React, { useState, useMemo } from 'react';
 import { Medicine, Transaction, Patient } from '../types';
-import { Search, Printer, Plus, Minus, ArrowRight, CheckCircle2, AlertCircle, ShoppingBag, X as LucideX, TrendingUp } from 'lucide-react';
+import { Search, Printer, Plus, Minus, ArrowRight, CheckCircle2, AlertCircle, ShoppingBag, X as LucideX, TrendingUp, Trash2 } from 'lucide-react';
 
 interface Props {
   medicines: Medicine[];
   patients: Patient[];
   onUpdate: (id: string, updates: Partial<Medicine>) => void;
+  onDelete: (id: string) => void;
   onAddTransaction: (t: Transaction) => void;
 }
 
-const StockView: React.FC<Props> = ({ medicines, patients, onUpdate, onAddTransaction }) => {
+const StockView: React.FC<Props> = ({ medicines, patients, onUpdate, onDelete, onAddTransaction }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [quickSearch, setQuickSearch] = useState('');
   const [selectedMedId, setSelectedMedId] = useState<string | null>(null);
@@ -104,10 +105,39 @@ const StockView: React.FC<Props> = ({ medicines, patients, onUpdate, onAddTransa
                     {medicines
                       .filter(m => m.name.toLowerCase().includes(quickSearch.toLowerCase()))
                       .map(m => (
-                        <button key={m.id} onClick={() => { setSelectedMedId(m.id); setQuickSearch(m.name); }} className="w-full text-left px-8 py-5 hover:bg-slate-700 border-b border-slate-700 last:border-0 flex justify-between items-center">
-                          <span className="text-xl font-black text-white">{m.name}</span>
-                          <span className="text-sm font-black text-blue-400">{m.stock} Meds Left</span>
-                        </button>
+                        <div key={m.id} className="w-full flex items-center hover:bg-slate-700 border-b border-slate-700 last:border-0">
+                          <button onClick={() => { setSelectedMedId(m.id); setQuickSearch(m.name); }} className="flex-1 text-left px-8 py-5 flex justify-between items-center group">
+                            <div className="flex flex-col">
+                              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{m.batchNumber || 'No Batch'}</span>
+                              <span className="text-xl font-black text-white group-hover:text-blue-400 transition-colors">{m.name}</span>
+                            </div>
+                            <span className="text-sm font-black text-slate-400">{m.stock} Meds Left</span>
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={(e) => {
+                              console.log("Trash button clicked for med (search):", m.id);
+                              e.stopPropagation();
+                              onDelete(m.id);
+                            }}
+                            className="p-5 text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 transition-all active:scale-90 cursor-pointer relative z-10"
+                            title="Delete Medicine"
+                          >
+                            <Trash2 size={20} />
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={(e) => {
+                              console.log("Minus button clicked for med (search):", m.id);
+                              e.stopPropagation();
+                              onDelete(m.id);
+                            }}
+                            className="p-5 text-amber-500 hover:text-amber-400 hover:bg-amber-500/10 transition-all active:scale-90 cursor-pointer relative z-10 border-l border-slate-700"
+                            title="Quick Remove"
+                          >
+                            <Minus size={20} />
+                          </button>
+                        </div>
                       ))
                     }
                   </div>
@@ -185,19 +215,30 @@ const StockView: React.FC<Props> = ({ medicines, patients, onUpdate, onAddTransa
         <table className="w-full text-left">
           <thead>
             <tr className="table-head">
+              <th className="table-th">Batch</th>
               <th className="table-th">Medicine Name</th>
-              <th className="table-th text-center">In Stock</th>
-              <th className="table-th text-center">Mera Profit / Med</th>
+              <th className="table-th text-center">Quantity (Strips)</th>
+              <th className="table-th text-center">Units (Total)</th>
+              <th className="table-th text-center">Profit / Unit</th>
+              <th className="table-th text-center">Profit / Strip</th>
               <th className="table-th text-center">Total Sold</th>
-              <th className="table-th text-right">Quick Add</th>
+              <th className="table-th text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {filteredMedicines.map(med => (
               <tr key={med.id} className="table-row">
+                <td className="table-td font-mono text-xs text-slate-500">{med.batchNumber || '-'}</td>
                 <td className="table-td"><p className="text-lg font-bold text-slate-800">{med.name}</p></td>
                 <td className="table-td text-center">
-                  <p className={`text-xl font-black ${med.stock < 10 ? 'text-rose-600' : 'text-slate-800'}`}>{med.stock}</p>
+                  <p className="text-xl font-black text-slate-800">
+                    {Math.floor(med.stock / (med.unitsPerPackage || 10))}
+                  </p>
+                </td>
+                <td className="table-td text-center">
+                  <p className={`text-xl font-black ${med.stock < 10 ? 'text-rose-600' : 'text-slate-800'}`}>
+                    {med.stock}
+                  </p>
                 </td>
                 <td className="table-td text-center">
                   <span className="badge badge-success border border-emerald-100">
@@ -205,12 +246,40 @@ const StockView: React.FC<Props> = ({ medicines, patients, onUpdate, onAddTransa
                   </span>
                 </td>
                 <td className="table-td text-center">
+                  <span className="badge badge-info border border-blue-100 bg-blue-50 text-blue-600">
+                    ₹{((med.mrp - med.costPrice) * (med.unitsPerPackage || 10)).toFixed(2)}
+                  </span>
+                </td>
+                <td className="table-td text-center">
                   <span className="text-lg font-bold text-blue-600">{med.sold} Sold</span>
                 </td>
                 <td className="table-td text-right">
-                  <button onClick={() => onUpdate(med.id, { stock: med.stock + 1 })} className="p-3 text-emerald-600 bg-emerald-50 rounded-2xl hover:bg-emerald-600 hover:text-white transition-all">
-                    <Plus size={24} />
-                  </button>
+                  <div className="flex items-center justify-end gap-2">
+                    <button 
+                      type="button"
+                      onClick={(e) => {
+                        console.log("Trash button clicked for med (table):", med.id);
+                        e.stopPropagation();
+                        onDelete(med.id);
+                      }} 
+                      className="p-3 text-rose-600 bg-rose-50 rounded-2xl hover:bg-rose-600 hover:text-white transition-all group active:scale-90 cursor-pointer relative z-10"
+                      title="Delete Medicine"
+                    >
+                      <Trash2 size={24} className="group-hover:scale-110 transition-transform" />
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={(e) => {
+                        console.log("Minus button clicked for med (table):", med.id);
+                        e.stopPropagation();
+                        onDelete(med.id);
+                      }} 
+                      className="p-3 text-amber-600 bg-amber-50 rounded-2xl hover:bg-amber-600 hover:text-white transition-all group active:scale-90 cursor-pointer relative z-10"
+                      title="Quick Remove"
+                    >
+                      <Minus size={24} className="group-hover:scale-110 transition-transform" />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

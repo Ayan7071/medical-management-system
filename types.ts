@@ -2,6 +2,7 @@
 export interface Medicine {
   id: string;
   name: string;
+  batchNumber?: string;
   category: string; // Added to fix property missing error in Dashboard.tsx
   costPrice: number; // Cost price per single unit
   mrp: number; // MRP per single unit
@@ -65,11 +66,14 @@ export interface AgencyBill {
 
 export interface BillItem {
   name: string;
+  batchNumber?: string;
   quantity: number; // Number of packages (strips/boxes)
-  unitsPerPackage: number; // Added to fix property missing error in AgencyManagement.tsx
-  costPrice: number;
+  unitsPerPackage: number;
+  basePrice: number; // Price before GST
+  gstRate: number; // GST percentage (5, 12, 18)
+  costPrice: number; // Calculated cost price (base + gst)
   mrp: number;
-  category: string; // Added to fix property missing error in AgencyManagement.tsx
+  category: string;
   expiryDate: string;
 }
 

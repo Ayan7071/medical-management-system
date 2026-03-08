@@ -1,7 +1,8 @@
 
 import React, { useState, useMemo } from 'react';
 import { Medicine, Agency } from '../types';
-import { Plus, Trash2, Edit2, AlertTriangle, Clock, Calculator, Percent } from 'lucide-react';
+import { Plus, Trash2, Edit2, AlertTriangle, Clock, Calculator, Percent, Sparkles, Upload, Loader2, Minus } from 'lucide-react';
+import { ScannedMedicine, extractMedicineData } from '../services/geminiService';
 
 interface Props {
   medicines: Medicine[];
@@ -12,31 +13,81 @@ interface Props {
 }
 
 const MedicineManagement: React.FC<Props> = ({ medicines, agencies, onAdd, onUpdate, onDelete }) => {
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [expiryFilter, setExpiryFilter] = useState<'all' | 'expired' | 'soon'>('all');
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
   const [formData, setFormData] = useState({
     name: '',
+    batchNumber: '',
     category: 'Tablet',
     basePrice: '',
     gstRate: '12',
     costPrice: '',
     mrp: '',
-    totalStock: '',
-    unitsPerPackage: '10',
+    quantity: '1', // Number of strips/boxes
+    unitsPerPackage: '10', // Units per strip/box
+    totalStock: '10', // Calculated total units
     expMonth: (new Date().getMonth() + 1).toString().padStart(2, '0'),
     expYear: (new Date().getFullYear() + 2).toString(),
     agencyId: ''
   });
 
-  // Auto-calculate Cost Price Per Unit
+  const handleEdit = (med: Medicine) => {
+    const [m, y] = med.expiryDate.split('/');
+    setFormData({
+      name: med.name,
+      batchNumber: med.batchNumber || '',
+      category: med.category,
+      basePrice: (med.costPrice / 1.12).toFixed(2), // Rough estimate for base price if editing
+      gstRate: '12',
+      costPrice: med.costPrice.toString(),
+      mrp: med.mrp.toString(),
+      quantity: Math.floor(med.stock / (med.unitsPerPackage || 10)).toString(),
+      unitsPerPackage: (med.unitsPerPackage || 10).toString(),
+      totalStock: med.stock.toString(),
+      expMonth: m,
+      expYear: y,
+      agencyId: med.agencyId || ''
+    });
+    setEditingId(med.id);
+    setIsAdding(true);
+  };
+
+  // Auto-calculate Cost Price Per Unit and Total Stock
+  const lastBasePrice = React.useRef(formData.basePrice);
+  const lastGstRate = React.useRef(formData.gstRate);
+
   React.useEffect(() => {
     const base = parseFloat(formData.basePrice) || 0;
     const gst = parseFloat(formData.gstRate) || 0;
-    const calculated = base + (base * gst / 100);
-    setFormData(prev => ({ ...prev, costPrice: calculated.toFixed(2) }));
-  }, [formData.basePrice, formData.gstRate]);
+    
+    const qty = parseInt(formData.quantity) || 0;
+    const unitsPkg = parseInt(formData.unitsPerPackage) || 0;
+    const total = qty * unitsPkg;
+
+    const updates: any = { totalStock: total.toString() };
+
+    // Only update costPrice if basePrice or gstRate actually changed
+    if (formData.basePrice !== lastBasePrice.current || formData.gstRate !== lastGstRate.current) {
+      const calculatedCost = base + (base * gst / 100);
+      updates.costPrice = calculatedCost.toFixed(2);
+      
+      // Also update MRP if it was empty or matching old cost
+      if (formData.mrp === '' || formData.mrp === lastBasePrice.current) {
+        updates.mrp = calculatedCost.toFixed(2);
+      }
+      
+      lastBasePrice.current = formData.basePrice;
+      lastGstRate.current = formData.gstRate;
+    }
+
+    setFormData(prev => ({ ...prev, ...updates }));
+  }, [formData.basePrice, formData.gstRate, formData.quantity, formData.unitsPerPackage]);
 
   const getExpiryStatus = (expiryStr: string) => {
     if (!expiryStr.includes('/')) return { label: 'Unknown', color: 'bg-slate-100' };
@@ -52,21 +103,76 @@ const MedicineManagement: React.FC<Props> = ({ medicines, agencies, onAdd, onUpd
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const newMed: Medicine = {
-      id: Math.random().toString(36).substr(2, 9),
+    const medData: Partial<Medicine> = {
       name: formData.name,
+      batchNumber: formData.batchNumber,
       category: formData.category,
       costPrice: parseFloat(formData.costPrice),
       mrp: parseFloat(formData.mrp),
       stock: parseInt(formData.totalStock) || 0,
-      sold: 0,
       expiryDate: `${formData.expMonth}/${formData.expYear}`,
       agencyId: formData.agencyId || undefined,
       unitsPerPackage: parseInt(formData.unitsPerPackage) || 1
     };
-    onAdd(newMed);
+
+    if (editingId) {
+      onUpdate(editingId, medData);
+      setEditingId(null);
+    } else {
+      const newMed: Medicine = {
+        id: Math.random().toString(36).substr(2, 9),
+        name: formData.name,
+        batchNumber: formData.batchNumber,
+        category: formData.category,
+        costPrice: parseFloat(formData.costPrice),
+        mrp: parseFloat(formData.mrp),
+        stock: parseInt(formData.totalStock) || 0,
+        sold: 0,
+        expiryDate: `${formData.expMonth}/${formData.expYear}`,
+        agencyId: formData.agencyId || undefined,
+        unitsPerPackage: parseInt(formData.unitsPerPackage) || 1
+      };
+      onAdd(newMed);
+    }
     setIsAdding(false);
-    setFormData(prev => ({ ...prev, name: '', basePrice: '', mrp: '', totalStock: '' }));
+    setFormData(prev => ({ ...prev, name: '', batchNumber: '', basePrice: '', mrp: '', totalStock: '' }));
+  };
+
+  const handleAIScan = (data: any) => {
+    const unitsPkg = data.unitsPerPackage || 10;
+    setFormData(prev => ({
+      ...prev,
+      name: data.name || '',
+      batchNumber: data.batchNumber || '',
+      category: data.category || 'Tablet',
+      basePrice: ((data.basePrice || 0) / unitsPkg).toFixed(2),
+      gstRate: (data.gstRate || 12).toString(),
+      mrp: ((data.mrp || 0) / unitsPkg).toFixed(2),
+      unitsPerPackage: unitsPkg.toString(),
+      expMonth: data.expiryDate?.split('-')[1] || data.expMonth || (new Date().getMonth() + 1).toString().padStart(2, '0'),
+      expYear: data.expiryDate?.split('-')[0] || data.expYear || (new Date().getFullYear() + 2).toString()
+    }));
+    setIsAdding(true);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64 = (reader.result as string).split(',')[1];
+        const data = await extractMedicineData(base64);
+        handleAIScan(data);
+        setIsUploading(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error(err);
+      setIsUploading(false);
+    }
   };
 
   return (
@@ -76,14 +182,35 @@ const MedicineManagement: React.FC<Props> = ({ medicines, agencies, onAdd, onUpd
           <h2 className="text-2xl font-bold text-slate-800">Medicine Master</h2>
           <p className="text-slate-500">Add products with accurate tax & unit pricing</p>
         </div>
-        <button onClick={() => setIsAdding(!isAdding)} className="btn-primary py-3 px-6 shadow-lg">
-          <Plus size={20} /> Add New
-        </button>
+        <div className="flex gap-3">
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleFileUpload} 
+            accept="image/*" 
+            className="hidden" 
+          />
+          <button 
+            onClick={() => fileInputRef.current?.click()} 
+            disabled={isUploading}
+            className="px-6 py-3 bg-slate-900 text-white rounded-2xl font-bold shadow-lg hover:bg-black transition-all flex items-center gap-2 disabled:opacity-50"
+          >
+            {isUploading ? <Loader2 className="animate-spin" size={20} /> : <Upload size={20} className="text-blue-400" />}
+            AI Upload
+          </button>
+          <button onClick={() => setIsAdding(!isAdding)} className="btn-primary py-3 px-6 shadow-lg">
+            <Plus size={20} /> Add New
+          </button>
+        </div>
       </div>
 
       {isAdding && (
         <div className="bg-white p-8 rounded-[2rem] border border-blue-100 shadow-xl animate-in fade-in slide-in-from-top-4">
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="space-y-1">
+              <label className="label-caps">Batch Number</label>
+              <input value={formData.batchNumber} onChange={e => setFormData({...formData, batchNumber: e.target.value})} className="input-field" placeholder="e.g. B-123" />
+            </div>
             <div className="md:col-span-2 space-y-1">
               <label className="label-caps">Medicine Name</label>
               <input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="input-field" placeholder="Enter Full Medicine Name" />
@@ -103,8 +230,21 @@ const MedicineManagement: React.FC<Props> = ({ medicines, agencies, onAdd, onUpd
             </div>
 
             <div className="space-y-1">
-              <label className="label-caps">Total Meds (Qty)</label>
-              <input type="number" required value={formData.totalStock} onChange={e => setFormData({...formData, totalStock: e.target.value})} className="input-field" placeholder="0" />
+              <label className="label-caps">Quantity (Strips)</label>
+              <input type="number" required value={formData.quantity} onChange={e => setFormData({...formData, quantity: e.target.value})} className="input-field" placeholder="1" />
+            </div>
+
+            <div className="space-y-1">
+              <label className="label-caps">Units / Strip</label>
+              <input type="number" required value={formData.unitsPerPackage} onChange={e => setFormData({...formData, unitsPerPackage: e.target.value})} className="input-field" placeholder="10" />
+            </div>
+
+            <div className="space-y-1">
+              <label className="label-caps">Total Units</label>
+              <div className="w-full px-5 py-4 bg-slate-100 border border-slate-200 rounded-2xl font-black text-slate-500 flex items-center justify-between">
+                <span>{formData.totalStock}</span>
+                <span className="text-[10px] uppercase tracking-widest">Calculated</span>
+              </div>
             </div>
 
             <div className="bg-blue-50/50 p-6 rounded-3xl md:col-span-4 grid grid-cols-1 md:grid-cols-4 gap-6 border border-blue-100/50">
@@ -114,17 +254,26 @@ const MedicineManagement: React.FC<Props> = ({ medicines, agencies, onAdd, onUpd
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-black text-blue-600 uppercase tracking-widest ml-1 flex items-center gap-1"><Percent size={12} /> GST %</label>
-                <select value={formData.gstRate} onChange={e => setFormData({...formData, gstRate: e.target.value})} className="w-full px-5 py-4 bg-white border border-blue-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-black text-blue-600">
-                  <option value="5">5%</option>
-                  <option value="12">12%</option>
-                  <option value="18">18%</option>
-                </select>
+                <input 
+                  type="number" 
+                  value={formData.gstRate} 
+                  onChange={e => setFormData({...formData, gstRate: e.target.value})} 
+                  className="w-full px-5 py-4 bg-white border border-blue-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-black text-blue-600" 
+                  placeholder="12" 
+                />
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Unit Cost (Accurate)</label>
-                <div className="w-full px-5 py-4 bg-slate-100 border border-slate-200 rounded-2xl font-black text-slate-500 flex items-center justify-between">
-                  <span>₹</span>
-                  <span>{formData.costPrice}</span>
+                <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Unit Cost (Final)</label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
+                  <input 
+                    type="number" 
+                    step="0.01" 
+                    value={formData.costPrice} 
+                    onChange={e => setFormData({...formData, costPrice: e.target.value})} 
+                    className="w-full pl-10 pr-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-slate-400 outline-none font-black text-slate-700" 
+                    placeholder="0.00" 
+                  />
                 </div>
               </div>
               <div className="space-y-1">
@@ -163,8 +312,12 @@ const MedicineManagement: React.FC<Props> = ({ medicines, agencies, onAdd, onUpd
         <table className="w-full text-left">
           <thead>
             <tr className="table-head">
+              <th className="table-th">Batch</th>
               <th className="table-th">Medicine Name</th>
-              <th className="table-th text-center">In Stock</th>
+              <th className="table-th text-center">Qty (Strips)</th>
+              <th className="table-th text-center">Units (Total)</th>
+              <th className="table-th text-center">Profit / Unit</th>
+              <th className="table-th text-center">Profit / Strip</th>
               <th className="table-th">Expiry</th>
               <th className="table-th text-right">Unit MRP</th>
               <th className="table-th text-right">Actions</th>
@@ -172,10 +325,28 @@ const MedicineManagement: React.FC<Props> = ({ medicines, agencies, onAdd, onUpd
           </thead>
           <tbody className="divide-y divide-slate-100">
             {medicines.map(med => (
-              <tr key={med.id} className="table-row">
+              <tr key={med.id} className="table-row group">
+                <td className="table-td font-mono text-xs text-slate-500">{med.batchNumber || '-'}</td>
                 <td className="table-td font-bold text-slate-800">{med.name}</td>
                 <td className="table-td text-center">
-                  <span className={`text-sm font-black ${med.stock < 10 ? 'text-rose-600' : 'text-slate-700'}`}>{med.stock} Meds</span>
+                  <span className="text-sm font-black text-slate-700">
+                    {Math.floor(med.stock / (med.unitsPerPackage || 10))} Strips
+                  </span>
+                </td>
+                <td className="table-td text-center">
+                  <span className={`text-sm font-black ${med.stock < 10 ? 'text-rose-600' : 'text-slate-700'}`}>
+                    {med.stock} Units
+                  </span>
+                </td>
+                <td className="table-td text-center">
+                  <span className="px-3 py-1 rounded-xl text-[10px] font-black uppercase bg-emerald-50 text-emerald-600 border border-emerald-100">
+                    ₹{(med.mrp - med.costPrice).toFixed(2)}
+                  </span>
+                </td>
+                <td className="table-td text-center">
+                  <span className="px-3 py-1 rounded-xl text-[10px] font-black uppercase bg-blue-50 text-blue-600 border border-blue-100">
+                    ₹{((med.mrp - med.costPrice) * (med.unitsPerPackage || 10)).toFixed(2)}
+                  </span>
                 </td>
                 <td className="table-td">
                   <span className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase border ${getExpiryStatus(med.expiryDate).color}`}>
@@ -183,8 +354,40 @@ const MedicineManagement: React.FC<Props> = ({ medicines, agencies, onAdd, onUpd
                   </span>
                 </td>
                 <td className="table-td text-right font-black text-emerald-600">₹{med.mrp.toFixed(2)}</td>
-                <td className="table-td text-right opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => onDelete(med.id)} className="p-2 text-rose-400 hover:text-rose-600"><Trash2 size={16} /></button>
+                <td className="table-td text-right">
+                  <div className="flex items-center justify-end gap-2">
+                    <button 
+                      onClick={() => handleEdit(med)}
+                      className="p-2 text-blue-400 hover:text-blue-600 transition-all active:scale-90"
+                      title="Edit"
+                    >
+                      <Edit2 size={18} />
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={(e) => {
+                        console.log("Trash button clicked for med:", med.id);
+                        e.stopPropagation();
+                        onDelete(med.id);
+                      }} 
+                      className="p-2 text-rose-400 hover:text-rose-600 transition-all active:scale-90 cursor-pointer relative z-10"
+                      title="Delete"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={(e) => {
+                        console.log("Minus button clicked for med:", med.id);
+                        e.stopPropagation();
+                        onDelete(med.id);
+                      }} 
+                      className="p-2 text-amber-400 hover:text-amber-600 transition-all active:scale-90 cursor-pointer relative z-10"
+                      title="Quick Remove"
+                    >
+                      <Minus size={18} />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

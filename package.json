@@ -12,6 +12,7 @@
   "dependencies": {
     "@google/genai": "^1.41.0",
     "@tailwindcss/postcss": "^4.2.1",
+    "@tailwindcss/vite": "^4.2.1",
     "autoprefixer": "^10.4.24",
     "lucide-react": "^0.563.0",
     "postcss": "^8.5.6",

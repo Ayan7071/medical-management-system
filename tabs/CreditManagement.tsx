@@ -1,15 +1,18 @@
 
 import React, { useState, useMemo } from 'react';
 import { Credit, Patient } from '../types';
-import { Search, WalletCards, MessageCircle, CheckCircle2, Phone, Calendar, IndianRupee } from 'lucide-react';
+import { Search, WalletCards, MessageCircle, CheckCircle2, Phone, Calendar, IndianRupee, Trash2, MinusCircle } from 'lucide-react';
 
 interface Props {
   credits: Credit[];
   patients: Patient[];
   onUpdateCredit: (id: string, updates: Partial<Credit>) => void;
+  onClearPaid: () => void;
+  onDeleteCredit: (id: string) => void;
+  onClearAll: () => void;
 }
 
-const CreditManagement: React.FC<Props> = ({ credits, patients, onUpdateCredit }) => {
+const CreditManagement: React.FC<Props> = ({ credits, patients, onUpdateCredit, onClearPaid, onDeleteCredit, onClearAll }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState<'all' | 'pending' | 'paid'>('pending');
 
@@ -74,12 +77,21 @@ const CreditManagement: React.FC<Props> = ({ credits, patients, onUpdateCredit }
           </div>
           <div className="bg-amber-100 p-4 rounded-2xl text-amber-600"><WalletCards size={32} /></div>
         </div>
-        <div className="bg-emerald-50 border border-emerald-100 p-6 rounded-2xl flex items-center justify-between shadow-sm">
+        <div className="bg-emerald-50 border border-emerald-100 p-6 rounded-2xl flex items-center justify-between shadow-sm relative group">
           <div>
             <p className="text-xs font-bold text-emerald-700 uppercase tracking-widest mb-1">Total Collected</p>
             <h3 className="text-3xl font-black text-emerald-800 flex items-center gap-1"><IndianRupee size={24} /> {totals.collected.toLocaleString()}</h3>
           </div>
-          <div className="bg-emerald-100 p-4 rounded-2xl text-emerald-600"><CheckCircle2 size={32} /></div>
+          <div className="flex flex-col items-end gap-2">
+            <div className="bg-emerald-100 p-3 rounded-xl text-emerald-600"><CheckCircle2 size={24} /></div>
+            <button 
+              onClick={onClearPaid}
+              className="p-2 bg-rose-50 text-rose-500 rounded-full hover:bg-rose-100 transition-colors shadow-sm"
+              title="Reset Collected Amount to 0"
+            >
+              <MinusCircle size={20} />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -125,7 +137,18 @@ const CreditManagement: React.FC<Props> = ({ credits, patients, onUpdateCredit }
                             </button>
                           </>
                         )}
-                        {c.status === 'paid' && <span className="text-emerald-500 font-bold text-xs flex items-center gap-1"><CheckCircle2 size={14} /> Settlement Complete</span>}
+                        {c.status === 'paid' && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-emerald-500 font-bold text-xs flex items-center gap-1"><CheckCircle2 size={14} /> Settlement Complete</span>
+                            <button 
+                              onClick={() => onDeleteCredit(c.id)}
+                              className="p-1.5 text-slate-300 hover:text-rose-500 transition-colors"
+                              title="Delete Record"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </td>
                   </tr>

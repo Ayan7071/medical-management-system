@@ -1,15 +1,16 @@
 
 import React, { useState } from 'react';
 import { Transaction, Patient, Medicine } from '../types';
-import { Printer, Download, Search, ChevronRight } from 'lucide-react';
+import { Printer, Download, Search, ChevronRight, Trash2, Minus } from 'lucide-react';
 
 interface Props {
   transactions: Transaction[];
   patients: Patient[];
   medicines: Medicine[];
+  onDeleteTransaction: (id: string) => void;
 }
 
-const Transactions: React.FC<Props> = ({ transactions, patients, medicines }) => {
+const Transactions: React.FC<Props> = ({ transactions, patients, medicines, onDeleteTransaction }) => {
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredTxns = transactions.filter(t => {
@@ -100,9 +101,35 @@ const Transactions: React.FC<Props> = ({ transactions, patients, medicines }) =>
                       <span className="font-bold text-emerald-600">₹{t.profit.toLocaleString()}</span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button className="p-2 text-slate-400 hover:text-blue-600 transition-colors">
-                        <ChevronRight size={20} />
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        <button className="p-2 text-slate-400 hover:text-blue-600 transition-colors">
+                          <ChevronRight size={20} />
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={(e) => {
+                            console.log("Trash button clicked for txn:", t.id);
+                            e.stopPropagation();
+                            onDeleteTransaction(t.id);
+                          }} 
+                          className="p-2 text-rose-400 hover:text-rose-600 transition-all active:scale-90 cursor-pointer relative z-10"
+                          title="Delete Transaction"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={(e) => {
+                            console.log("Minus button clicked for txn:", t.id);
+                            e.stopPropagation();
+                            onDeleteTransaction(t.id);
+                          }} 
+                          className="p-2 text-amber-400 hover:text-amber-600 transition-all active:scale-90 cursor-pointer relative z-10"
+                          title="Quick Remove"
+                        >
+                          <Minus size={18} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );

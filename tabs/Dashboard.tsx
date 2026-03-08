@@ -19,8 +19,9 @@ const Dashboard: React.FC<Props> = ({ medicines, transactions, patients }) => {
     const totalProfit = transactions.reduce((acc, curr) => acc + curr.profit, 0);
     const lowStock = medicines.filter(m => m.stock < 10).length;
     const outOfStock = medicines.filter(m => m.stock === 0).length;
+    const potentialProfit = medicines.reduce((acc, curr) => acc + (curr.stock * (curr.mrp - curr.costPrice)), 0);
 
-    return { totalSales, totalProfit, lowStock, outOfStock };
+    return { totalSales, totalProfit, lowStock, outOfStock, potentialProfit };
   }, [medicines, transactions]);
 
   const salesData = useMemo(() => {
@@ -45,8 +46,8 @@ const Dashboard: React.FC<Props> = ({ medicines, transactions, patients }) => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {[
           { label: 'Total Revenue', value: `₹${stats.totalSales.toLocaleString()}`, icon: DollarSign, color: 'text-blue-600', bg: 'bg-blue-50' },
-          { label: 'Total Profit', value: `₹${stats.totalProfit.toLocaleString()}`, icon: TrendingUp, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-          { label: 'Total Patients', value: patients.length, icon: Users, color: 'text-amber-600', bg: 'bg-amber-50' },
+          { label: 'Total Profit Earned', value: `₹${stats.totalProfit.toLocaleString()}`, icon: TrendingUp, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+          { label: 'Stock Profit Value', value: `₹${stats.potentialProfit.toLocaleString()}`, icon: Package, color: 'text-amber-600', bg: 'bg-amber-50' },
           { label: 'Out of Stock', value: stats.outOfStock, icon: AlertCircle, color: 'text-rose-600', bg: 'bg-rose-50' },
         ].map((item, i) => (
           <div key={i} className="stat-card">
@@ -89,7 +90,7 @@ const Dashboard: React.FC<Props> = ({ medicines, transactions, patients }) => {
               <div key={med.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
                 <div>
                   <p className="text-sm font-semibold text-slate-800">{med.name}</p>
-                  <p className="text-xs text-slate-500">{med.category}</p>
+                  <p className="text-xs text-slate-500">{med.category} • {med.batchNumber || 'No Batch'}</p>
                 </div>
                 <div className="text-right">
                   <p className={`text-sm font-bold ${med.stock < 10 ? 'text-rose-500' : 'text-slate-800'}`}>{med.stock}</p>

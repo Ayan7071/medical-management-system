@@ -18,7 +18,9 @@ import {
   Upload,
   Save,
   ShieldCheck,
-  Database
+  Database,
+  X as LucideX,
+  Trash2
 } from 'lucide-react';
 import { Medicine, Patient, Transaction, Agency, ActiveTab, Credit, AgencyBill } from './types';
 import Dashboard from './tabs/Dashboard';
@@ -34,6 +36,8 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
   const [lastSaved, setLastSaved] = useState<string>(new Date().toLocaleTimeString());
   const restoreInputRef = useRef<HTMLInputElement>(null);
+  
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   const [medicines, setMedicines] = useState<Medicine[]>(() => {
     const saved = localStorage.getItem('kranti_medicines');
@@ -132,13 +136,50 @@ const App: React.FC = () => {
     alert('Database sync complete. Data is secure.');
   };
 
+  const handleResetData = () => {
+    if (!window.confirm("WARNING: This will permanently delete ALL data (Medicines, Patients, Sales, Agencies). This action cannot be undone. Are you sure?")) {
+      return;
+    }
+    
+    if (!window.confirm("Final check: Are you absolutely sure you want to wipe the database clean?")) {
+      return;
+    }
+
+    // 1. Clear localStorage synchronously first
+    const keys = Object.keys(localStorage);
+    for (const key of keys) {
+      if (key.startsWith('kranti_')) {
+        localStorage.removeItem(key);
+      }
+    }
+    
+    // 2. Reload immediately to ensure a clean state
+    window.location.reload();
+  };
+
   const addMedicine = (med: Medicine) => setMedicines(prev => [...prev, med]);
   const updateMedicine = (id: string, updates: Partial<Medicine>) => {
     setMedicines(prev => prev.map(m => m.id === id ? { ...m, ...updates } : m));
   };
-  const deleteMedicine = (id: string) => setMedicines(prev => prev.filter(m => m.id !== id));
+  const deleteMedicine = (id: string) => {
+    console.log("Attempting to delete medicine:", id, typeof id);
+    setMedicines(prev => {
+      const filtered = prev.filter(m => String(m.id) !== String(id));
+      console.log(`Medicine Delete: Before=${prev.length}, After=${filtered.length}`);
+      return filtered;
+    });
+  };
 
   const addPatient = (pat: Patient) => setPatients(prev => [...prev, pat]);
+  const deletePatient = (id: string) => {
+    console.log("Attempting to delete patient:", id, typeof id);
+    setPatients(prev => {
+      const filtered = prev.filter(p => String(p.id) !== String(id));
+      console.log(`Patient Delete: Before=${prev.length}, After=${filtered.length}`);
+      return filtered;
+    });
+  };
+
   const addTransaction = (txn: Transaction) => {
     setTransactions(prev => [txn, ...prev]);
     txn.medicines.forEach(item => {
@@ -162,14 +203,53 @@ const App: React.FC = () => {
     }
   };
 
+  const clearAllCredits = () => {
+    console.log("Attempting to clear all credits...");
+    if (window.confirm("Are you sure you want to delete ALL credit records (Pending & Paid)? This will completely empty the credit management system.")) {
+      setCredits([]);
+      console.log("All credits cleared.");
+    }
+  };
+
+  const deleteTransaction = (id: string) => {
+    console.log("Attempting to delete transaction:", id, typeof id);
+    setTransactions(prev => {
+      const filtered = prev.filter(t => String(t.id) !== String(id));
+      console.log(`Transaction Delete: Before=${prev.length}, After=${filtered.length}`);
+      return filtered;
+    });
+  };
+
   const addAgency = (agn: Agency) => setAgencies(prev => [...prev, agn]);
   const deleteAgency = (id: string) => {
-    setAgencies(prev => prev.filter(a => a.id !== id));
-    setAgencyBills(prev => prev.filter(b => b.agencyId !== id));
+    console.log("Attempting to delete agency:", id, typeof id);
+    setAgencies(prev => {
+      const filtered = prev.filter(a => String(a.id) !== String(id));
+      console.log(`Agency Delete: Before=${prev.length}, After=${filtered.length}`);
+      return filtered;
+    });
+    setAgencyBills(prev => prev.filter(b => String(b.agencyId) !== String(id)));
   };
 
   const updateCredit = (id: string, updates: Partial<Credit>) => {
     setCredits(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+  };
+
+  const deleteCredit = (id: string) => {
+    if (window.confirm("Are you sure you want to delete this credit record?")) {
+      setCredits(prev => prev.filter(c => c.id !== id));
+    }
+  };
+
+  const clearPaidCredits = () => {
+    console.log("Attempting to clear paid credits...");
+    if (window.confirm("Are you sure you want to clear all paid credit records? This will reset the 'Total Collected' amount to zero.")) {
+      setCredits(prev => {
+        const filtered = prev.filter(c => c.status === 'pending');
+        console.log(`Paid credits cleared. Before=${prev.length}, After=${filtered.length}`);
+        return filtered;
+      });
+    }
   };
 
   const addAgencyBill = (bill: AgencyBill) => setAgencyBills(prev => [bill, ...prev]);
@@ -181,12 +261,12 @@ const App: React.FC = () => {
     switch(activeTab) {
       case 'dashboard': return <Dashboard medicines={medicines} transactions={transactions} patients={patients} />;
       case 'medicine': return <MedicineManagement medicines={medicines} agencies={agencies} onAdd={addMedicine} onUpdate={updateMedicine} onDelete={deleteMedicine} />;
-      case 'stock': return <StockView medicines={medicines} patients={patients} onUpdate={updateMedicine} onAddTransaction={addTransaction} />;
-      case 'patient': return <PatientManagement patients={patients} medicines={medicines} onAddPatient={addPatient} onAddTransaction={addTransaction} />;
-      case 'transaction': return <Transactions transactions={transactions} patients={patients} medicines={medicines} />;
+      case 'stock': return <StockView medicines={medicines} patients={patients} onUpdate={updateMedicine} onDelete={deleteMedicine} onAddTransaction={addTransaction} />;
+      case 'patient': return <PatientManagement patients={patients} medicines={medicines} credits={credits} onAddPatient={addPatient} onDeletePatient={deletePatient} onAddTransaction={addTransaction} />;
+      case 'transaction': return <Transactions transactions={transactions} patients={patients} medicines={medicines} onDeleteTransaction={deleteTransaction} />;
       case 'profit': return <ProfitAnalytics transactions={transactions} />;
       case 'agency': return <AgencyManagement agencies={agencies} medicines={medicines} agencyBills={agencyBills} onAddAgency={addAgency} onDeleteAgency={deleteAgency} onBatchAddMedicines={(meds) => setMedicines(prev => [...prev, ...meds])} onAddAgencyBill={addAgencyBill} onUpdateAgencyBill={updateAgencyBill} />;
-      case 'credit': return <CreditManagement credits={credits} patients={patients} onUpdateCredit={updateCredit} />;
+      case 'credit': return <CreditManagement credits={credits} patients={patients} onUpdateCredit={updateCredit} onClearPaid={clearPaidCredits} onDeleteCredit={deleteCredit} onClearAll={clearAllCredits} />;
       default: return <Dashboard medicines={medicines} transactions={transactions} patients={patients} />;
     }
   };
@@ -203,19 +283,39 @@ const App: React.FC = () => {
   ] as const;
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
-      <aside className="w-64 bg-white border-r border-slate-200 hidden md:flex flex-col sticky top-0 h-screen no-print">
-        <div className="p-6 border-b border-slate-100 flex items-center gap-3">
-          <div className="bg-blue-600 p-2 rounded-lg text-white">
-            <Pill size={24} />
+    <div className="flex min-h-screen bg-slate-50 relative">
+      {/* Mobile Overlay */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-slate-900/50 z-40 md:hidden backdrop-blur-sm"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
+      <aside className={`
+        fixed md:sticky top-0 left-0 z-50 h-screen w-64 bg-white border-r border-slate-200 
+        transition-transform duration-300 ease-in-out no-print flex flex-col
+        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+      `}>
+        <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="bg-blue-600 p-2 rounded-lg text-white">
+              <Pill size={24} />
+            </div>
+            <span className="font-bold text-xl tracking-tight text-slate-800">Kranti Medical</span>
           </div>
-          <span className="font-bold text-xl tracking-tight text-slate-800">Kranti Medical</span>
+          <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-slate-400">
+            <LucideX size={24} />
+          </button>
         </div>
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {navItems.map((item) => (
             <button
               key={item.id}
-              onClick={() => setActiveTab(item.id)}
+              onClick={() => {
+                setActiveTab(item.id);
+                setIsMobileMenuOpen(false);
+              }}
               className={`sidebar-link ${activeTab === item.id ? 'sidebar-link-active' : ''}`}
             >
               <item.icon size={20} />
@@ -240,6 +340,9 @@ const App: React.FC = () => {
             <button onClick={() => restoreInputRef.current?.click()} className="w-full flex items-center gap-3 px-3 py-2 text-xs font-bold text-white hover:bg-slate-800 rounded-xl transition-colors">
               <Upload size={14} className="text-amber-400" /> Restore Vault
             </button>
+            <button onClick={handleResetData} className="w-full flex items-center gap-3 px-3 py-2 text-xs font-bold text-rose-400 hover:bg-rose-500/10 rounded-xl transition-colors">
+              <Trash2 size={14} className="text-rose-400" /> Reset All Data
+            </button>
           </div>
           
           <input type="file" ref={restoreInputRef} onChange={handleRestore} accept=".json" className="hidden" />
@@ -255,9 +358,17 @@ const App: React.FC = () => {
           </div>
         </div>
       </aside>
-      <main className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="bg-white h-16 border-b border-slate-200 px-8 flex items-center justify-between no-print sticky top-0 z-10">
-          <h1 className="text-xl font-bold text-slate-800 capitalize">{activeTab}</h1>
+      <main className="flex-1 flex flex-col h-screen overflow-hidden w-full">
+        <header className="bg-white h-16 border-b border-slate-200 px-4 md:px-8 flex items-center justify-between no-print sticky top-0 z-10">
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="p-2 -ml-2 text-slate-500 md:hidden hover:bg-slate-100 rounded-lg"
+            >
+              <LayoutDashboard size={24} />
+            </button>
+            <h1 className="text-lg md:text-xl font-bold text-slate-800 capitalize">{activeTab}</h1>
+          </div>
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-4 border-l pl-6 border-slate-200">
               <button className="text-slate-400 hover:text-slate-600 relative">

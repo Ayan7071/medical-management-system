@@ -4,7 +4,7 @@ import { Agency, Medicine, BillItem, AgencyBill } from '../types';
 import { 
   Plus, Trash2, Phone, MapPin, Building2, Upload, Sparkles, Loader2, CheckCircle2, X, 
   Receipt, Wallet, History, AlertCircle, IndianRupee, Save, ChevronLeft, Calendar,
-  ArrowRight, Search, ListFilter, Check, CreditCard
+  ArrowRight, Search, ListFilter, Check, CreditCard, Minus
 } from 'lucide-react';
 import { extractBillData } from '../services/geminiService';
 
@@ -58,10 +58,33 @@ const AgencyManagement: React.FC<Props> = ({
     try {
       const reader = new FileReader();
       reader.onload = async () => {
-        const base64 = (reader.result as string).split(',')[1];
-        const items = await extractBillData(base64);
-        setScannedItems(items);
-        setIsUploadingBill(false);
+        const img = new Image();
+        img.onload = async () => {
+          // Resize image to speed up upload and processing
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          const maxDim = 1200;
+
+          if (width > height && width > maxDim) {
+            height *= maxDim / width;
+            width = maxDim;
+          } else if (height > maxDim) {
+            width *= maxDim / height;
+            height = maxDim;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          
+          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7).split(',')[1];
+          const items = await extractBillData(compressedBase64);
+          setScannedItems(items);
+          setIsUploadingBill(false);
+        };
+        img.src = reader.result as string;
       };
       reader.readAsDataURL(file);
     } catch (err) {
@@ -72,7 +95,18 @@ const AgencyManagement: React.FC<Props> = ({
 
   const updateScannedItem = (index: number, field: keyof BillItem, value: string | number) => {
     const updated = [...scannedItems];
-    updated[index] = { ...updated[index], [field]: value } as BillItem;
+    const item = { ...updated[index], [field]: value } as BillItem;
+    
+    // Auto-calculate costPrice when basePrice or gstRate changes
+    if (field === 'basePrice' || field === 'gstRate') {
+      item.costPrice = item.basePrice * (1 + (item.gstRate || 0) / 100);
+      // Only auto-set MRP if it's currently 0 or not yet set
+      if (!item.mrp || item.mrp === 0) {
+        item.mrp = Number(item.costPrice.toFixed(2));
+      }
+    }
+    
+    updated[index] = item;
     setScannedItems(updated);
   };
 
@@ -81,8 +115,18 @@ const AgencyManagement: React.FC<Props> = ({
   };
 
   const addNewItemRow = () => {
-    // Added category and unitsPerPackage to comply with updated BillItem interface
-    setScannedItems([...scannedItems, { name: '', quantity: 1, unitsPerPackage: 10, costPrice: 0, mrp: 0, category: 'Tablet', expiryDate: new Date().toISOString().split('T')[0] }]);
+    setScannedItems([...scannedItems, { 
+      name: '', 
+      batchNumber: '',
+      quantity: 1, 
+      unitsPerPackage: 10, 
+      basePrice: 0,
+      gstRate: 12,
+      costPrice: 0, 
+      mrp: 0, 
+      category: 'Tablet', 
+      expiryDate: new Date().toISOString().split('T')[0] 
+    }]);
   };
 
   const confirmBillEntry = () => {
@@ -91,12 +135,17 @@ const AgencyManagement: React.FC<Props> = ({
     // Correctly map scanned items to Medicine interface and calculate stock as total units
     const newMeds: Medicine[] = scannedItems.map(item => {
       const unitsPerPkg = item.unitsPerPackage || 10;
+      // Convert strip prices to unit prices for the Medicine master
+      const unitCostPrice = Number(item.costPrice) / unitsPerPkg;
+      const unitMrp = Number(item.mrp) / unitsPerPkg;
+      
       return {
         id: Math.random().toString(36).substr(2, 9),
         name: item.name,
+        batchNumber: item.batchNumber,
         category: item.category || 'Medicine',
-        costPrice: Number(item.costPrice),
-        mrp: Number(item.mrp),
+        costPrice: Number(unitCostPrice.toFixed(2)),
+        mrp: Number(unitMrp.toFixed(2)),
         unitsPerPackage: unitsPerPkg,
         // Medicine stock represents total individual units (tablets)
         stock: Number(item.quantity) * unitsPerPkg,
@@ -192,8 +241,17 @@ const AgencyManagement: React.FC<Props> = ({
             disabled={isUploadingBill}
             className="flex items-center gap-2 px-4 py-2.5 bg-blue-50 text-blue-600 rounded-xl font-bold hover:bg-blue-100 transition-all disabled:opacity-50"
           >
-            {isUploadingBill ? <Loader2 className="animate-spin" size={18} /> : <Sparkles size={18} />}
-            Scan Bill
+            {isUploadingBill ? (
+              <>
+                <Loader2 className="animate-spin" size={18} />
+                <span>Scanning...</span>
+              </>
+            ) : (
+              <>
+                <Sparkles size={18} />
+                <span>Scan Bill</span>
+              </>
+            )}
           </button>
           <button 
             onClick={() => setIsAddingBill(true)}
@@ -333,7 +391,32 @@ const AgencyManagement: React.FC<Props> = ({
                     <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center">
                       <Building2 size={24} />
                     </div>
-                    <button onClick={() => onDeleteAgency(agn.id)} className="text-slate-200 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={18} /></button>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        type="button"
+                        onClick={(e) => {
+                          console.log("Trash button clicked for agency:", agn.id);
+                          e.stopPropagation();
+                          onDeleteAgency(agn.id);
+                        }} 
+                        className="text-slate-200 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all active:scale-90 cursor-pointer relative z-10"
+                        title="Delete Agency"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={(e) => {
+                          console.log("Minus button clicked for agency:", agn.id);
+                          e.stopPropagation();
+                          onDeleteAgency(agn.id);
+                        }} 
+                        className="text-slate-200 hover:text-amber-500 opacity-0 group-hover:opacity-100 transition-all active:scale-90 cursor-pointer relative z-10"
+                        title="Quick Remove"
+                      >
+                        <Minus size={18} />
+                      </button>
+                    </div>
                   </div>
                   <h4 className="text-lg font-bold text-slate-800">{agn.name}</h4>
                   <div className="mt-2 space-y-2">
@@ -482,11 +565,15 @@ const AgencyManagement: React.FC<Props> = ({
             <table className="w-full text-left">
               <thead className="bg-blue-50 border-b border-blue-100 sticky top-0">
                 <tr>
+                  <th className="px-6 py-3 text-[10px] font-black text-blue-800 uppercase tracking-widest">Batch</th>
                   <th className="px-6 py-3 text-[10px] font-black text-blue-800 uppercase tracking-widest">Name</th>
-                  <th className="px-6 py-3 text-[10px] font-black text-blue-800 uppercase tracking-widest text-center">Strips</th>
-                  <th className="px-6 py-3 text-[10px] font-black text-blue-800 uppercase tracking-widest text-center">Units/Pkg</th>
-                  <th className="px-6 py-3 text-[10px] font-black text-blue-800 uppercase tracking-widest text-right">Cost (₹)</th>
-                  <th className="px-6 py-3 text-[10px] font-black text-blue-800 uppercase tracking-widest text-right">MRP (₹)</th>
+                  <th className="px-6 py-3 text-[10px] font-black text-blue-800 uppercase tracking-widest text-center">Qty (Strips)</th>
+                  <th className="px-6 py-3 text-[10px] font-black text-blue-800 uppercase tracking-widest text-center">Units/Strip</th>
+                  <th className="px-6 py-3 text-[10px] font-black text-blue-800 uppercase tracking-widest text-center">Total Units</th>
+                  <th className="px-6 py-3 text-[10px] font-black text-blue-800 uppercase tracking-widest text-center">GST %</th>
+                  <th className="px-6 py-3 text-[10px] font-black text-blue-800 uppercase tracking-widest text-right">Base/Strip (₹)</th>
+                  <th className="px-6 py-3 text-[10px] font-black text-blue-800 uppercase tracking-widest text-right">Cost/Strip (₹)</th>
+                  <th className="px-6 py-3 text-[10px] font-black text-blue-800 uppercase tracking-widest text-right">MRP/Strip (₹)</th>
                   <th className="px-6 py-3 text-[10px] font-black text-blue-800 uppercase tracking-widest text-center">Expiry</th>
                   <th className="px-6 py-3 text-[10px] font-black text-blue-800 uppercase tracking-widest text-right">Actions</th>
                 </tr>
@@ -494,6 +581,15 @@ const AgencyManagement: React.FC<Props> = ({
               <tbody className="divide-y divide-blue-50">
                 {scannedItems.map((item, i) => (
                   <tr key={i} className="hover:bg-blue-50/20 transition-colors">
+                    <td className="px-6 py-3">
+                      <input 
+                        type="text" 
+                        value={item.batchNumber} 
+                        onChange={(e) => updateScannedItem(i, 'batchNumber', e.target.value)}
+                        className="w-20 bg-transparent font-mono text-xs text-slate-500 focus:ring-1 focus:ring-blue-300 rounded px-1 outline-none"
+                        placeholder="Batch"
+                      />
+                    </td>
                     <td className="px-6 py-3">
                       <input 
                         type="text" 
@@ -507,7 +603,7 @@ const AgencyManagement: React.FC<Props> = ({
                         type="number" 
                         value={item.quantity} 
                         onChange={(e) => updateScannedItem(i, 'quantity', parseInt(e.target.value) || 0)}
-                        className="w-16 mx-auto text-center bg-transparent text-slate-600 outline-none"
+                        className="w-12 mx-auto text-center bg-transparent text-slate-600 outline-none"
                       />
                     </td>
                     <td className="px-6 py-3 text-center">
@@ -515,23 +611,44 @@ const AgencyManagement: React.FC<Props> = ({
                         type="number" 
                         value={item.unitsPerPackage || 10} 
                         onChange={(e) => updateScannedItem(i, 'unitsPerPackage', parseInt(e.target.value) || 1)}
-                        className="w-16 mx-auto text-center bg-transparent text-slate-600 outline-none"
+                        className="w-12 mx-auto text-center bg-transparent text-slate-600 outline-none"
                       />
+                    </td>
+                    <td className="px-6 py-3 text-center">
+                      <span className="text-xs font-bold text-blue-600">
+                        {item.quantity * (item.unitsPerPackage || 10)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-3 text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        <input 
+                          type="number" 
+                          value={item.gstRate} 
+                          onChange={(e) => updateScannedItem(i, 'gstRate', parseInt(e.target.value) || 0)}
+                          className="w-10 text-center bg-transparent text-xs font-bold text-slate-600 outline-none"
+                        />
+                        <span className="text-[10px] text-slate-400">%</span>
+                      </div>
                     </td>
                     <td className="px-6 py-3 text-right">
                       <input 
                         type="number" 
-                        value={item.costPrice} 
-                        onChange={(e) => updateScannedItem(i, 'costPrice', parseFloat(e.target.value) || 0)}
-                        className="w-20 bg-transparent text-right text-slate-600 outline-none"
+                        value={item.basePrice} 
+                        onChange={(e) => updateScannedItem(i, 'basePrice', parseFloat(e.target.value) || 0)}
+                        className="w-16 bg-transparent text-right text-slate-600 outline-none"
                       />
+                    </td>
+                    <td className="px-6 py-3 text-right">
+                      <span className="text-xs font-bold text-slate-500">
+                        ₹{item.costPrice.toFixed(2)}
+                      </span>
                     </td>
                     <td className="px-6 py-3 text-right">
                       <input 
                         type="number" 
                         value={item.mrp} 
                         onChange={(e) => updateScannedItem(i, 'mrp', parseFloat(e.target.value) || 0)}
-                        className="w-20 bg-transparent text-right font-bold text-slate-800 outline-none"
+                        className="w-16 bg-transparent text-right font-bold text-slate-800 outline-none"
                       />
                     </td>
                     <td className="px-6 py-3 text-center">
