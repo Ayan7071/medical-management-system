@@ -38,6 +38,7 @@ const AgencyManagement: React.FC<Props> = ({
   const [billForm, setBillForm] = useState({
     agencyId: '',
     billNumber: '',
+    date: new Date().toISOString().split('T')[0],
     totalAmount: '',
     paidAmount: '',
     notes: ''
@@ -184,7 +185,7 @@ const AgencyManagement: React.FC<Props> = ({
       id: Math.random().toString(36).substr(2, 9),
       agencyId: billForm.agencyId,
       billNumber: billForm.billNumber || `BILL-${Date.now()}`,
-      date: new Date().toISOString(),
+      date: billForm.date,
       totalAmount: total,
       paidAmount: paid,
       pendingAmount: total - paid,
@@ -193,7 +194,14 @@ const AgencyManagement: React.FC<Props> = ({
 
     onAddAgencyBill(newBill);
     setIsAddingBill(false);
-    setBillForm({ agencyId: '', billNumber: '', totalAmount: '', paidAmount: '', notes: '' });
+    setBillForm({ 
+      agencyId: '', 
+      billNumber: '', 
+      date: new Date().toISOString().split('T')[0],
+      totalAmount: '', 
+      paidAmount: '', 
+      notes: '' 
+    });
     alert("Bill recorded successfully!");
   };
 
@@ -305,6 +313,16 @@ const AgencyManagement: React.FC<Props> = ({
                 <option value="">-- Select Agency --</option>
                 {agencies.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Bill Date</label>
+              <input 
+                type="date" 
+                required 
+                value={billForm.date} 
+                onChange={e => setBillForm({...billForm, date: e.target.value})} 
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" 
+              />
             </div>
             <div className="space-y-1">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Bill Number</label>
