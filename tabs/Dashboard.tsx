@@ -38,6 +38,31 @@ const Dashboard: React.FC<Props> = ({ medicines, transactions, patients }) => {
     }));
   }, [transactions]);
 
+  const expiryAlerts = useMemo(() => {
+    const today = new Date();
+    const currentMonth = today.getMonth() + 1;
+    const currentYear = today.getFullYear();
+
+    return medicines.filter(med => {
+      if (!med.expiryDate.includes('/')) return false;
+      const [m, y] = med.expiryDate.split('/').map(Number);
+      
+      // Already expired
+      if (y < currentYear || (y === currentYear && m < currentMonth)) return true;
+      
+      // Expiring this month or next month (Alert)
+      if (y === currentYear && (m === currentMonth || m === currentMonth + 1)) return true;
+      if (y === currentYear + 1 && currentMonth === 12 && m === 1) return true;
+
+      return false;
+    }).map(med => {
+      const [m, y] = med.expiryDate.split('/').map(Number);
+      const isExpired = y < currentYear || (y === currentYear && m < currentMonth);
+      const isThisMonth = y === currentYear && m === currentMonth;
+      return { ...med, isExpired, isThisMonth };
+    }).sort((a, b) => (a.isExpired === b.isExpired ? 0 : a.isExpired ? -1 : 1));
+  }, [medicines]);
+
   const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'];
 
   return (
@@ -61,6 +86,47 @@ const Dashboard: React.FC<Props> = ({ medicines, transactions, patients }) => {
           </div>
         ))}
       </div>
+
+      {/* Expiry Alerts Section */}
+      {expiryAlerts.length > 0 && (
+        <div className="card border-rose-100 bg-rose-50/30">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="text-rose-600" size={24} />
+              <h3 className="text-lg font-bold text-slate-800 tracking-tight">Expiry Alerts (Expired & Soon)</h3>
+            </div>
+            <span className="px-3 py-1 bg-rose-100 text-rose-600 rounded-full text-xs font-bold uppercase tracking-wider">
+              {expiryAlerts.length} Alerts
+            </span>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {expiryAlerts.slice(0, 6).map(med => (
+              <div key={med.id} className={`p-4 rounded-2xl border ${med.isExpired ? 'bg-white border-rose-200' : 'bg-white border-amber-200'} shadow-sm`}>
+                <div className="flex justify-between items-start mb-2">
+                  <h4 className="font-bold text-slate-800 truncate max-w-[150px]">{med.name}</h4>
+                  <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase ${med.isExpired ? 'bg-rose-100 text-rose-600' : 'bg-amber-100 text-amber-600'}`}>
+                    {med.isExpired ? 'Expired' : 'Soon'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Expiry Date</p>
+                    <p className={`text-sm font-black ${med.isExpired ? 'text-rose-600' : 'text-amber-600'}`}>{med.expiryDate}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Stock</p>
+                    <p className="text-sm font-black text-slate-800">{med.stock} Units</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          {expiryAlerts.length > 6 && (
+            <p className="mt-4 text-center text-xs text-slate-500 font-medium italic">And {expiryAlerts.length - 6} more medicines expiring...</p>
+          )}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Sales Chart */}
