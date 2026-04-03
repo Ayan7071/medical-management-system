@@ -37,6 +37,33 @@ const MedicineManagement: React.FC<Props> = ({ medicines, agencies, onAdd, onUpd
     agencyId: ''
   });
 
+  const { expiredMeds, soonMeds, regularMeds } = useMemo(() => {
+    const today = new Date();
+    const currentMonth = today.getMonth() + 1;
+    const currentYear = today.getFullYear();
+
+    const expired: Medicine[] = [];
+    const soon: Medicine[] = [];
+    const regular: Medicine[] = [];
+
+    medicines.forEach(med => {
+      if (!med.expiryDate.includes('/')) {
+        regular.push(med);
+        return;
+      }
+      const [m, y] = med.expiryDate.split('/').map(Number);
+      const isExpired = y < currentYear || (y === currentYear && m < currentMonth);
+      const isSoon = y === currentYear && (m === currentMonth || m === currentMonth + 1);
+      const isNextYearSoon = y === currentYear + 1 && currentMonth === 12 && m === 1;
+
+      if (isExpired) expired.push(med);
+      else if (isSoon || isNextYearSoon) soon.push(med);
+      else regular.push(med);
+    });
+
+    return { expiredMeds: expired, soonMeds: soon, regularMeds: regular };
+  }, [medicines]);
+
   const handleEdit = (med: Medicine) => {
     const [m, y] = med.expiryDate.split('/');
     setFormData({
@@ -308,6 +335,54 @@ const MedicineManagement: React.FC<Props> = ({ medicines, agencies, onAdd, onUpd
         </div>
       )}
 
+      {/* Expired Medicines Section */}
+      {expiredMeds.length > 0 && (
+        <div className="bg-rose-50 border-2 border-rose-200 p-6 rounded-[2rem] shadow-sm animate-in fade-in slide-in-from-top-4">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="bg-rose-100 p-2 rounded-xl text-rose-600"><AlertTriangle size={24} /></div>
+            <div>
+              <h3 className="text-lg font-black text-rose-800 uppercase tracking-tight">Expired Medicines (Action Required)</h3>
+              <p className="text-xs text-rose-600 font-bold">These medicines are past their expiry date. Remove them from stock immediately.</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {expiredMeds.map(med => (
+              <div key={med.id} className="bg-white p-4 rounded-2xl border border-rose-100 shadow-sm flex justify-between items-center">
+                <div>
+                  <p className="font-bold text-slate-800">{med.name}</p>
+                  <p className="text-[10px] font-black text-rose-600 uppercase tracking-widest">Expired: {med.expiryDate}</p>
+                </div>
+                <button onClick={() => onDelete(med.id)} className="p-2 text-rose-400 hover:text-rose-600 transition-all"><Trash2 size={18} /></button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Soon to Expire Section */}
+      {soonMeds.length > 0 && (
+        <div className="bg-amber-50 border-2 border-amber-200 p-6 rounded-[2rem] shadow-sm animate-in fade-in slide-in-from-top-4">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="bg-amber-100 p-2 rounded-xl text-amber-600"><Clock size={24} /></div>
+            <div>
+              <h3 className="text-lg font-black text-amber-800 uppercase tracking-tight">Expiring Soon (Next 30-60 Days)</h3>
+              <p className="text-xs text-amber-600 font-bold">Check these medicines and consider selling them first or returning to agency.</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {soonMeds.map(med => (
+              <div key={med.id} className="bg-white p-4 rounded-2xl border border-amber-100 shadow-sm flex justify-between items-center">
+                <div>
+                  <p className="font-bold text-slate-800">{med.name}</p>
+                  <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Expiring: {med.expiryDate}</p>
+                </div>
+                <button onClick={() => handleEdit(med)} className="p-2 text-amber-400 hover:text-amber-600 transition-all"><Edit2 size={18} /></button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="table-container">
         <table className="w-full text-left">
           <thead>
@@ -324,73 +399,77 @@ const MedicineManagement: React.FC<Props> = ({ medicines, agencies, onAdd, onUpd
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {medicines.map(med => (
-              <tr key={med.id} className="table-row group">
-                <td className="table-td font-mono text-xs text-slate-500">{med.batchNumber || '-'}</td>
-                <td className="table-td font-bold text-slate-800">{med.name}</td>
-                <td className="table-td text-center">
-                  <span className="text-sm font-black text-slate-700">
-                    {Math.floor(med.stock / (med.unitsPerPackage || 10))} Strips
-                  </span>
-                </td>
-                <td className="table-td text-center">
-                  <span className={`text-sm font-black ${med.stock < 10 ? 'text-rose-600' : 'text-slate-700'}`}>
-                    {med.stock} Units
-                  </span>
-                </td>
-                <td className="table-td text-center">
-                  <span className="px-3 py-1 rounded-xl text-[10px] font-black uppercase bg-emerald-50 text-emerald-600 border border-emerald-100">
-                    ₹{(med.mrp - med.costPrice).toFixed(2)}
-                  </span>
-                </td>
-                <td className="table-td text-center">
-                  <span className="px-3 py-1 rounded-xl text-[10px] font-black uppercase bg-blue-50 text-blue-600 border border-blue-100">
-                    ₹{((med.mrp - med.costPrice) * (med.unitsPerPackage || 10)).toFixed(2)}
-                  </span>
-                </td>
-                <td className="table-td">
-                  <span className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase border ${getExpiryStatus(med.expiryDate).color}`}>
-                    {med.expiryDate}
-                  </span>
-                </td>
-                <td className="table-td text-right font-black text-emerald-600">₹{med.mrp.toFixed(2)}</td>
-                <td className="table-td text-right">
-                  <div className="flex items-center justify-end gap-2">
-                    <button 
-                      onClick={() => handleEdit(med)}
-                      className="p-2 text-blue-400 hover:text-blue-600 transition-all active:scale-90"
-                      title="Edit"
-                    >
-                      <Edit2 size={18} />
-                    </button>
-                    <button 
-                      type="button"
-                      onClick={(e) => {
-                        console.log("Trash button clicked for med:", med.id);
-                        e.stopPropagation();
-                        onDelete(med.id);
-                      }} 
-                      className="p-2 text-rose-400 hover:text-rose-600 transition-all active:scale-90 cursor-pointer relative z-10"
-                      title="Delete"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                    <button 
-                      type="button"
-                      onClick={(e) => {
-                        console.log("Minus button clicked for med:", med.id);
-                        e.stopPropagation();
-                        onDelete(med.id);
-                      }} 
-                      className="p-2 text-amber-400 hover:text-amber-600 transition-all active:scale-90 cursor-pointer relative z-10"
-                      title="Quick Remove"
-                    >
-                      <Minus size={18} />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+            {medicines.map(med => {
+              const status = getExpiryStatus(med.expiryDate);
+              const isExpired = status.label === 'Expired';
+              return (
+                <tr key={med.id} className={`table-row group ${isExpired ? 'bg-rose-50/50' : ''}`}>
+                  <td className="table-td font-mono text-xs text-slate-500">{med.batchNumber || '-'}</td>
+                  <td className="table-td font-bold text-slate-800">{med.name}</td>
+                  <td className="table-td text-center">
+                    <span className="text-sm font-black text-slate-700">
+                      {Math.floor(med.stock / (med.unitsPerPackage || 10))} Strips
+                    </span>
+                  </td>
+                  <td className="table-td text-center">
+                    <span className={`text-sm font-black ${med.stock < 10 ? 'text-rose-600' : 'text-slate-700'}`}>
+                      {med.stock} Units
+                    </span>
+                  </td>
+                  <td className="table-td text-center">
+                    <span className="px-3 py-1 rounded-xl text-[10px] font-black uppercase bg-emerald-50 text-emerald-600 border border-emerald-100">
+                      ₹{(med.mrp - med.costPrice).toFixed(2)}
+                    </span>
+                  </td>
+                  <td className="table-td text-center">
+                    <span className="px-3 py-1 rounded-xl text-[10px] font-black uppercase bg-blue-50 text-blue-600 border border-blue-100">
+                      ₹{((med.mrp - med.costPrice) * (med.unitsPerPackage || 10)).toFixed(2)}
+                    </span>
+                  </td>
+                  <td className="table-td">
+                    <span className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase border ${getExpiryStatus(med.expiryDate).color}`}>
+                      {med.expiryDate}
+                    </span>
+                  </td>
+                  <td className="table-td text-right font-black text-emerald-600">₹{med.mrp.toFixed(2)}</td>
+                  <td className="table-td text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <button 
+                        onClick={() => handleEdit(med)}
+                        className="p-2 text-blue-400 hover:text-blue-600 transition-all active:scale-90"
+                        title="Edit"
+                      >
+                        <Edit2 size={18} />
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={(e) => {
+                          console.log("Trash button clicked for med:", med.id);
+                          e.stopPropagation();
+                          onDelete(med.id);
+                        }} 
+                        className="p-2 text-rose-400 hover:text-rose-600 transition-all active:scale-90 cursor-pointer relative z-10"
+                        title="Delete"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={(e) => {
+                          console.log("Minus button clicked for med:", med.id);
+                          e.stopPropagation();
+                          onDelete(med.id);
+                        }} 
+                        className="p-2 text-amber-400 hover:text-amber-600 transition-all active:scale-90 cursor-pointer relative z-10"
+                        title="Quick Remove"
+                      >
+                        <Minus size={18} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
