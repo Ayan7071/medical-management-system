@@ -4,14 +4,23 @@ import { Transaction, Patient, Medicine } from '../types';
 import { Printer, Download, Search, ChevronRight, Trash2, Minus } from 'lucide-react';
 
 interface Props {
+  isActive?: boolean;
   transactions: Transaction[];
   patients: Patient[];
   medicines: Medicine[];
   onDeleteTransaction: (id: string) => void;
 }
 
-const Transactions: React.FC<Props> = ({ transactions, patients, medicines, onDeleteTransaction }) => {
+const Transactions: React.FC<Props> = ({ isActive, transactions, patients, medicines, onDeleteTransaction }) => {
   const [searchTerm, setSearchTerm] = useState('');
+
+  const searchInputRef = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    if (isActive && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [isActive]);
 
   const filteredTxns = transactions.filter(t => {
     const patient = patients.find(p => p.id === t.patientId);
@@ -57,6 +66,7 @@ const Transactions: React.FC<Props> = ({ transactions, patients, medicines, onDe
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input 
+              ref={searchInputRef}
               type="text" 
               placeholder="Filter transactions..."
               value={searchTerm}
