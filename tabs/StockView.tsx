@@ -4,6 +4,7 @@ import { Medicine, Transaction, Patient } from '../types';
 import { Search, Printer, Plus, Minus, ArrowRight, CheckCircle2, AlertCircle, ShoppingBag, X as LucideX, TrendingUp, Trash2 } from 'lucide-react';
 
 interface Props {
+  isActive?: boolean;
   medicines: Medicine[];
   patients: Patient[];
   onUpdate: (id: string, updates: Partial<Medicine>) => void;
@@ -11,11 +12,19 @@ interface Props {
   onAddTransaction: (t: Transaction) => void;
 }
 
-const StockView: React.FC<Props> = ({ medicines, patients, onUpdate, onDelete, onAddTransaction }) => {
+const StockView: React.FC<Props> = ({ isActive, medicines, patients, onUpdate, onDelete, onAddTransaction }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [quickSearch, setQuickSearch] = useState('');
   const [selectedMedId, setSelectedMedId] = useState<string | null>(null);
   const [unitsToDeduct, setUnitsToDeduct] = useState<string>('1');
+
+  const quickSearchRef = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    if (isActive && quickSearchRef.current) {
+      quickSearchRef.current.focus();
+    }
+  }, [isActive]);
 
   const filteredMedicines = medicines.filter(m => 
     m.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -89,6 +98,7 @@ const StockView: React.FC<Props> = ({ medicines, patients, onUpdate, onDelete, o
               <div className="relative">
                 <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-500" size={24} />
                 <input 
+                  ref={quickSearchRef}
                   type="text"
                   placeholder="Type Medicine Name..."
                   value={quickSearch}
