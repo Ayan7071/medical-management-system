@@ -257,20 +257,6 @@ const App: React.FC = () => {
     setAgencyBills(prev => prev.map(b => b.id === id ? { ...b, ...updates } : b));
   };
 
-  const renderContent = () => {
-    switch(activeTab) {
-      case 'dashboard': return <Dashboard medicines={medicines} transactions={transactions} patients={patients} />;
-      case 'medicine': return <MedicineManagement medicines={medicines} agencies={agencies} onAdd={addMedicine} onUpdate={updateMedicine} onDelete={deleteMedicine} />;
-      case 'stock': return <StockView medicines={medicines} patients={patients} onUpdate={updateMedicine} onDelete={deleteMedicine} onAddTransaction={addTransaction} />;
-      case 'patient': return <PatientManagement patients={patients} medicines={medicines} credits={credits} onAddPatient={addPatient} onDeletePatient={deletePatient} onAddTransaction={addTransaction} />;
-      case 'transaction': return <Transactions transactions={transactions} patients={patients} medicines={medicines} onDeleteTransaction={deleteTransaction} />;
-      case 'profit': return <ProfitAnalytics transactions={transactions} />;
-      case 'agency': return <AgencyManagement agencies={agencies} medicines={medicines} agencyBills={agencyBills} onAddAgency={addAgency} onDeleteAgency={deleteAgency} onBatchAddMedicines={(meds) => setMedicines(prev => [...prev, ...meds])} onAddAgencyBill={addAgencyBill} onUpdateAgencyBill={updateAgencyBill} />;
-      case 'credit': return <CreditManagement credits={credits} patients={patients} onUpdateCredit={updateCredit} onClearPaid={clearPaidCredits} onDeleteCredit={deleteCredit} onClearAll={clearAllCredits} />;
-      default: return <Dashboard medicines={medicines} transactions={transactions} patients={patients} />;
-    }
-  };
-
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'medicine', label: 'Medicines', icon: Pill },
@@ -385,7 +371,30 @@ const App: React.FC = () => {
           </div>
         </header>
         <div className="flex-1 overflow-y-auto p-8 bg-slate-50">
-          {renderContent()}
+          <div className={activeTab === 'dashboard' ? 'block' : 'hidden'}>
+            <Dashboard medicines={medicines} transactions={transactions} patients={patients} />
+          </div>
+          <div className={activeTab === 'medicine' ? 'block' : 'hidden'}>
+            <MedicineManagement isActive={activeTab === 'medicine'} medicines={medicines} agencies={agencies} onAdd={addMedicine} onUpdate={updateMedicine} onDelete={deleteMedicine} />
+          </div>
+          <div className={activeTab === 'stock' ? 'block' : 'hidden'}>
+            <StockView isActive={activeTab === 'stock'} medicines={medicines} patients={patients} onUpdate={updateMedicine} onDelete={deleteMedicine} onAddTransaction={addTransaction} />
+          </div>
+          <div className={activeTab === 'patient' ? 'block' : 'hidden'}>
+            <PatientManagement isActive={activeTab === 'patient'} patients={patients} medicines={medicines} credits={credits} transactions={transactions} onAddPatient={addPatient} onDeletePatient={deletePatient} onAddTransaction={addTransaction} />
+          </div>
+          <div className={activeTab === 'transaction' ? 'block' : 'hidden'}>
+            <Transactions isActive={activeTab === 'transaction'} transactions={transactions} patients={patients} medicines={medicines} onDeleteTransaction={deleteTransaction} />
+          </div>
+          <div className={activeTab === 'profit' ? 'block' : 'hidden'}>
+            <ProfitAnalytics isActive={activeTab === 'profit'} transactions={transactions} />
+          </div>
+          <div className={activeTab === 'agency' ? 'block' : 'hidden'}>
+            <AgencyManagement isActive={activeTab === 'agency'} agencies={agencies} medicines={medicines} agencyBills={agencyBills} onAddAgency={addAgency} onDeleteAgency={deleteAgency} onBatchAddMedicines={(meds) => setMedicines(prev => [...prev, ...meds])} onAddAgencyBill={addAgencyBill} onUpdateAgencyBill={updateAgencyBill} />
+          </div>
+          <div className={activeTab === 'credit' ? 'block' : 'hidden'}>
+            <CreditManagement isActive={activeTab === 'credit'} credits={credits} patients={patients} onUpdateCredit={updateCredit} onClearPaid={clearPaidCredits} onDeleteCredit={deleteCredit} onClearAll={clearAllCredits} />
+          </div>
         </div>
       </main>
     </div>
