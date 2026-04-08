@@ -22,8 +22,8 @@ const Transactions: React.FC<Props> = ({ isActive, transactions, patients, medic
     }
   }, [isActive]);
 
-  const filteredTxns = transactions.filter(t => {
-    const patient = patients.find(p => p.id === t.patientId);
+  const filteredTxns = (transactions || []).filter(t => {
+    const patient = (patients || []).find(p => p.id === t.patientId);
     return patient?.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
            patient?.phone.includes(searchTerm) ||
            t.id.includes(searchTerm);
@@ -91,8 +91,8 @@ const Transactions: React.FC<Props> = ({ isActive, transactions, patients, medic
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredTxns.map(t => {
-                const p = patients.find(pat => pat.id === t.patientId);
+              {(filteredTxns || []).map(t => {
+                const p = (patients || []).find(pat => pat.id === t.patientId);
                 return (
                   <tr key={t.id} className="hover:bg-slate-50/50 transition-colors group">
                     <td className="px-6 py-4 font-mono text-xs text-slate-400">#{t.id}</td>
