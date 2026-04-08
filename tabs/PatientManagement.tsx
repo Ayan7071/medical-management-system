@@ -34,12 +34,12 @@ const PatientManagement: React.FC<Props> = ({ isActive, patients, medicines, cre
   }, [isActive, activeView]);
 
   const filteredMedicines = useMemo(() => 
-    medicines.filter(m => m.name.toLowerCase().includes(medSearch.toLowerCase()))
+    (medicines || []).filter(m => m.name.toLowerCase().includes(medSearch.toLowerCase()))
   , [medicines, medSearch]);
 
   const cartTotal = useMemo(() => 
-    cart.reduce((acc, item) => {
-      const med = medicines.find(m => m.id === item.medicineId);
+    (cart || []).reduce((acc, item) => {
+      const med = (medicines || []).find(m => m.id === item.medicineId);
       return acc + (med ? med.mrp * item.quantity : 0);
     }, 0)
   , [cart, medicines]);
@@ -49,10 +49,10 @@ const PatientManagement: React.FC<Props> = ({ isActive, patients, medicines, cre
   }, [cartTotal]);
 
   const addToCart = (medId: string) => {
-    const med = medicines.find(m => m.id === medId);
+    const med = (medicines || []).find(m => m.id === medId);
     if (!med || med.stock <= 0) return;
     setCart(prev => {
-      const existing = prev.find(i => i.medicineId === medId);
+      const existing = (prev || []).find(i => i.medicineId === medId);
       if (existing) {
         if (existing.quantity >= med.stock) {
           alert("Insufficient stock!");
@@ -65,8 +65,8 @@ const PatientManagement: React.FC<Props> = ({ isActive, patients, medicines, cre
   };
 
   const updateCartQty = (medId: string, delta: number) => {
-    const med = medicines.find(m => m.id === medId);
-    setCart(prev => prev.map(i => {
+    const med = (medicines || []).find(m => m.id === medId);
+    setCart(prev => (prev || []).map(i => {
       if (i.medicineId === medId) {
         const newQty = Math.max(1, i.quantity + delta);
         if (med && newQty > med.stock) return i;
@@ -77,11 +77,11 @@ const PatientManagement: React.FC<Props> = ({ isActive, patients, medicines, cre
   };
 
   const handleCheckout = () => {
-    if (!selectedPatientId || cart.length === 0) return;
+    if (!selectedPatientId || (cart || []).length === 0) return;
     let totalAmount = 0;
     let totalCost = 0;
-    const saleMeds = cart.map(item => {
-      const med = medicines.find(m => m.id === item.medicineId)!;
+    const saleMeds = (cart || []).map(item => {
+      const med = (medicines || []).find(m => m.id === item.medicineId)!;
       const linePrice = item.quantity * med.mrp;
       totalAmount += linePrice;
       totalCost += item.quantity * med.costPrice;
@@ -113,19 +113,19 @@ const PatientManagement: React.FC<Props> = ({ isActive, patients, medicines, cre
   };
 
   const selectedPatient = useMemo(() => 
-    patients.find(p => p.id === selectedPatientId)
+    (patients || []).find(p => p.id === selectedPatientId)
   , [patients, selectedPatientId]);
 
   const patientCredits = useMemo(() => 
-    credits.filter(c => c.patientId === selectedPatientId)
+    (credits || []).filter(c => c.patientId === selectedPatientId)
   , [credits, selectedPatientId]);
 
   const patientTransactions = useMemo(() => 
-    transactions.filter(t => t.patientId === selectedPatientId)
+    (transactions || []).filter(t => t.patientId === selectedPatientId)
   , [transactions, selectedPatientId]);
 
   const totalPendingCredit = useMemo(() => 
-    patientCredits.filter(c => c.status === 'pending').reduce((acc, c) => acc + c.amount, 0)
+    (patientCredits || []).filter(c => c.status === 'pending').reduce((acc, c) => acc + c.amount, 0)
   , [patientCredits]);
 
   return (
@@ -145,8 +145,8 @@ const PatientManagement: React.FC<Props> = ({ isActive, patients, medicines, cre
               <input placeholder="Search patient..." value={searchPatient} onChange={e => setSearchPatient(e.target.value)} className="w-full pl-12 pr-4 py-4 bg-white border border-slate-200 rounded-2xl shadow-sm" />
             </div>
             <div className="bg-white rounded-2xl border divide-y overflow-hidden shadow-sm">
-              {patients.filter(p => p.name.toLowerCase().includes(searchPatient.toLowerCase())).map(p => {
-                const pending = credits.filter(c => c.patientId === p.id && c.status === 'pending').reduce((acc, c) => acc + c.amount, 0);
+              {(patients || []).filter(p => p.name.toLowerCase().includes(searchPatient.toLowerCase())).map(p => {
+                const pending = (credits || []).filter(c => c.patientId === p.id && c.status === 'pending').reduce((acc, c) => acc + c.amount, 0);
                 return (
                   <div key={p.id} className="p-5 flex items-center justify-between hover:bg-slate-50">
                     <div className="flex items-center gap-4">
@@ -240,7 +240,7 @@ const PatientManagement: React.FC<Props> = ({ isActive, patients, medicines, cre
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {patientTransactions.map(tx => (
+                  {(patientTransactions || []).map(tx => (
                     <tr key={tx.id} className="hover:bg-slate-50/30 transition-colors">
                       <td className="px-8 py-5 font-bold text-slate-600">
                         {new Date(tx.date).toLocaleDateString()}
@@ -248,8 +248,8 @@ const PatientManagement: React.FC<Props> = ({ isActive, patients, medicines, cre
                       </td>
                       <td className="px-8 py-5">
                         <div className="space-y-1">
-                          {tx.medicines.map((m, idx) => {
-                            const med = medicines.find(item => item.id === m.medicineId);
+                          {(tx.medicines || []).map((m, idx) => {
+                            const med = (medicines || []).find(item => item.id === m.medicineId);
                             return (
                               <p key={idx} className="text-sm font-bold text-slate-800">
                                 {med?.name || 'Unknown'} <span className="text-slate-400 font-medium">x {m.quantity}</span>
@@ -261,7 +261,7 @@ const PatientManagement: React.FC<Props> = ({ isActive, patients, medicines, cre
                       <td className="px-8 py-5 text-right font-black text-emerald-600 text-lg">₹{tx.totalAmount}</td>
                     </tr>
                   ))}
-                  {patientTransactions.length === 0 && (
+                  {(patientTransactions || []).length === 0 && (
                     <tr>
                       <td colSpan={3} className="px-8 py-16 text-center text-slate-400 font-bold italic">No purchase history found.</td>
                     </tr>
@@ -285,7 +285,7 @@ const PatientManagement: React.FC<Props> = ({ isActive, patients, medicines, cre
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {patientCredits.map(credit => (
+                  {(patientCredits || []).map(credit => (
                     <tr key={credit.id} className="hover:bg-slate-50/30 transition-colors">
                       <td className="px-8 py-5 font-bold text-slate-600">
                         {new Date(credit.date).toLocaleDateString()}
@@ -299,7 +299,7 @@ const PatientManagement: React.FC<Props> = ({ isActive, patients, medicines, cre
                       </td>
                     </tr>
                   ))}
-                  {patientCredits.length === 0 && (
+                  {(patientCredits || []).length === 0 && (
                     <tr>
                       <td colSpan={3} className="px-8 py-16 text-center text-slate-400 font-bold italic">No credit history found for this patient.</td>
                     </tr>
@@ -317,7 +317,7 @@ const PatientManagement: React.FC<Props> = ({ isActive, patients, medicines, cre
               <input placeholder="Search medicine name..." value={medSearch} onChange={e => setMedSearch(e.target.value)} className="w-full pl-12 pr-4 py-4 bg-white border rounded-2xl shadow-sm" />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {filteredMedicines.map(med => (
+              {(filteredMedicines || []).map(med => (
                 <div key={med.id} className="p-6 border rounded-[2rem] bg-white hover:border-blue-500 hover:shadow-xl transition-all group">
                   <div className="flex justify-between items-start mb-6">
                     <div>
@@ -339,11 +339,11 @@ const PatientManagement: React.FC<Props> = ({ isActive, patients, medicines, cre
               <h3 className="text-xl font-black flex items-center gap-2 text-slate-800"><ShoppingCart size={24} className="text-blue-600" /> Sale Basket</h3>
               <select value={selectedPatientId} onChange={e => setSelectedPatientId(e.target.value)} className="w-full px-5 py-4 bg-slate-50 border rounded-2xl font-bold">
                 <option value="">Choose Patient...</option>
-                {patients.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                {patients && patients.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
               <div className="divide-y max-h-80 overflow-y-auto">
-                {cart.map((item, idx) => {
-                  const med = medicines.find(m => m.id === item.medicineId)!;
+                {(cart || []).map((item, idx) => {
+                  const med = (medicines || []).find(m => m.id === item.medicineId)!;
                   return (
                     <div key={item.medicineId} className="py-4 flex justify-between items-center">
                       <div className="flex-1">
