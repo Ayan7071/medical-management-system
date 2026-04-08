@@ -24,30 +24,30 @@ const ProfitAnalytics: React.FC<Props> = ({ transactions }) => {
       const start = new Date(customDate.start);
       const end = customDate.end ? new Date(customDate.end) : new Date();
       end.setHours(23, 59, 59);
-      return transactions.filter(t => {
+      return (transactions || []).filter(t => {
         const d = new Date(t.date);
         return d >= start && d <= end;
       });
     }
 
     switch(filter) {
-      case 'today': return transactions.filter(t => t.date.startsWith(todayStr));
-      case 'yesterday': return transactions.filter(t => t.date.startsWith(yesterdayStr));
-      case 'month': return transactions.filter(t => new Date(t.date) >= monthStart);
-      default: return transactions;
+      case 'today': return (transactions || []).filter(t => t.date.startsWith(todayStr));
+      case 'yesterday': return (transactions || []).filter(t => t.date.startsWith(yesterdayStr));
+      case 'month': return (transactions || []).filter(t => new Date(t.date) >= monthStart);
+      default: return (transactions || []);
     }
   }, [transactions, filter, customDate]);
 
   const totals = useMemo(() => {
-    const revenue = filteredData.reduce((acc, curr) => acc + curr.totalAmount, 0);
-    const cost = filteredData.reduce((acc, curr) => acc + curr.totalCost, 0);
+    const revenue = (filteredData || []).reduce((acc, curr) => acc + curr.totalAmount, 0);
+    const cost = (filteredData || []).reduce((acc, curr) => acc + curr.totalCost, 0);
     const profit = revenue - cost;
     const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
     return { revenue, cost, profit, margin };
   }, [filteredData]);
 
   const chartData = useMemo(() => {
-    return filteredData.slice().reverse().map(t => ({
+    return (filteredData || []).slice().reverse().map(t => ({
       name: new Date(t.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       profit: t.profit,
       revenue: t.totalAmount
