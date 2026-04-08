@@ -9,6 +9,7 @@ import {
 import { extractBillData } from '../services/geminiService';
 
 interface Props {
+  isActive?: boolean;
   agencies: Agency[];
   medicines: Medicine[];
   agencyBills: AgencyBill[];
@@ -20,7 +21,7 @@ interface Props {
 }
 
 const AgencyManagement: React.FC<Props> = ({ 
-  agencies, medicines, agencyBills, onAddAgency, onDeleteAgency, onBatchAddMedicines, onAddAgencyBill, onUpdateAgencyBill 
+  isActive, agencies, medicines, agencyBills, onAddAgency, onDeleteAgency, onBatchAddMedicines, onAddAgencyBill, onUpdateAgencyBill 
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<'suppliers' | 'ledger'>('suppliers');
   const [isAddingAgency, setIsAddingAgency] = useState(false);
@@ -45,6 +46,13 @@ const AgencyManagement: React.FC<Props> = ({
   });
 
   const billInputRef = useRef<HTMLInputElement>(null);
+  const agencyNameRef = useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    if (isActive && activeSubTab === 'suppliers' && isAddingAgency && agencyNameRef.current) {
+      agencyNameRef.current.focus();
+    }
+  }, [isActive, activeSubTab, isAddingAgency]);
 
   const totalOutstanding = useMemo(() => 
     agencyBills.reduce((acc, curr) => acc + curr.pendingAmount, 0), 
@@ -379,7 +387,13 @@ const AgencyManagement: React.FC<Props> = ({
                     <form onSubmit={handleAddAgency} className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="space-y-1">
                             <label className="text-xs font-bold text-slate-400 uppercase">Agency Name</label>
-                            <input required value={newAgency.name} onChange={e => setNewAgency({...newAgency, name: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
+                            <input 
+                                ref={agencyNameRef}
+                                required 
+                                value={newAgency.name} 
+                                onChange={e => setNewAgency({...newAgency, name: e.target.value})} 
+                                className="w-full px-4 py-2 bg-slate-50 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500" 
+                            />
                         </div>
                         <div className="space-y-1">
                             <label className="text-xs font-bold text-slate-400 uppercase">Contact</label>
