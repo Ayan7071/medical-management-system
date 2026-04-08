@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Medicine, Agency } from '../types';
-import { Plus, Trash2, Edit2, AlertTriangle, Clock, Calculator, Percent, Sparkles, Upload, Loader2, Minus } from 'lucide-react';
+import { Plus, Trash2, Edit2, AlertTriangle, Clock, Calculator, Percent, Sparkles, Upload, Loader2, Minus, AlertCircle } from 'lucide-react';
 import { ScannedMedicine, extractMedicineData } from '../services/geminiService';
 
 interface Props {
@@ -50,26 +50,34 @@ const MedicineManagement: React.FC<Props> = ({ isActive, medicines, agencies, on
     const currentMonth = today.getMonth() + 1;
     const currentYear = today.getFullYear();
 
+    const getExpiryStatus = (expiryDate: string) => {
+      if (!expiryDate.includes('/')) return { label: 'Valid', color: 'text-slate-600 bg-slate-100' };
+      const [m, y] = expiryDate.split('/').map(Number);
+      
+      // Expired if year is past OR (year is current AND month is current or past)
+      const isExpired = y < currentYear || (y === currentYear && m <= currentMonth);
+      if (isExpired) return { label: 'Expired', color: 'text-rose-600 bg-rose-100' };
+      
+      // Soon if expiring in the next 2 months
+      const isSoon = y === currentYear && (m === currentMonth + 1 || m === currentMonth + 2);
+      const isNextYearSoon = y === currentYear + 1 && currentMonth >= 11 && m <= (currentMonth === 11 ? 1 : 2);
+      if (isSoon || isNextYearSoon) return { label: 'Soon', color: 'text-amber-600 bg-amber-100' };
+      
+      return { label: 'Valid', color: 'text-emerald-600 bg-emerald-100' };
+    };
+
     const expired: Medicine[] = [];
     const soon: Medicine[] = [];
     const regular: Medicine[] = [];
 
-    medicines.forEach(med => {
-      if (!med.expiryDate.includes('/')) {
-        regular.push(med);
-        return;
-      }
-      const [m, y] = med.expiryDate.split('/').map(Number);
-      const isExpired = y < currentYear || (y === currentYear && m < currentMonth);
-      const isSoon = y === currentYear && (m === currentMonth || m === currentMonth + 1);
-      const isNextYearSoon = y === currentYear + 1 && currentMonth === 12 && m === 1;
-
-      if (isExpired) expired.push(med);
-      else if (isSoon || isNextYearSoon) soon.push(med);
+    (medicines || []).forEach(med => {
+      const status = getExpiryStatus(med.expiryDate);
+      if (status.label === 'Expired') expired.push(med);
+      else if (status.label === 'Soon') soon.push(med);
       else regular.push(med);
     });
 
-    return { expiredMeds: expired, soonMeds: soon, regularMeds: regular };
+    return { expiredMeds: expired, soonMeds: soon, regularMeds: regular, getExpiryStatus };
   }, [medicines]);
 
   const handleEdit = (med: Medicine) => {
@@ -236,6 +244,49 @@ const MedicineManagement: React.FC<Props> = ({ isActive, medicines, agencies, on
         </div>
       </div>
 
+      {/* Expired Medicines Alert Section */}
+      {expiredMeds.length > 0 && (
+        <div className="bg-rose-50 border-2 border-rose-100 rounded-[2.5rem] p-8 animate-in slide-in-from-top-4">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-rose-600 text-white rounded-2xl shadow-lg shadow-rose-200">
+                <AlertCircle size={24} />
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-rose-900 tracking-tight">Expired Medicines</h3>
+                <p className="text-rose-600/70 text-sm font-bold">These items have reached their expiry date and must be removed</p>
+              </div>
+            </div>
+            <span className="px-4 py-1.5 bg-rose-600 text-white rounded-full text-xs font-black uppercase tracking-widest">
+              {expiredMeds.length} Items Expired
+            </span>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {(expiredMeds || []).map(med => (
+              <div key={med.id} className="bg-white p-5 rounded-2xl border border-rose-200 shadow-sm flex justify-between items-center group hover:shadow-md transition-all">
+                <div>
+                  <h4 className="font-black text-slate-800 group-hover:text-rose-600 transition-colors">{med.name}</h4>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Batch: {med.batchNumber || 'N/A'}</p>
+                  <p className="text-sm font-black text-rose-600 mt-2">Expired: {med.expiryDate}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Stock</p>
+                  <p className="text-xl font-black text-slate-800">{med.stock}</p>
+                  <button 
+                    onClick={() => onDelete(med.id)}
+                    className="mt-2 p-2 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+                    title="Remove Expired Medicine"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {isAdding && (
         <div className="bg-white p-8 rounded-[2rem] border border-blue-100 shadow-xl animate-in fade-in slide-in-from-top-4">
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -340,7 +391,7 @@ const MedicineManagement: React.FC<Props> = ({ isActive, medicines, agencies, on
               <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Agency</label>
               <select value={formData.agencyId} onChange={e => handleInputChange('agencyId', e.target.value)} className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold">
                 <option value="">Direct / None</option>
-                {agencies.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                {(agencies || []).map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
             </div>
 
@@ -363,7 +414,7 @@ const MedicineManagement: React.FC<Props> = ({ isActive, medicines, agencies, on
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {expiredMeds.map(med => (
+            {(expiredMeds || []).map(med => (
               <div key={med.id} className="bg-white p-4 rounded-2xl border border-rose-100 shadow-sm flex justify-between items-center">
                 <div>
                   <p className="font-bold text-slate-800">{med.name}</p>
@@ -387,7 +438,7 @@ const MedicineManagement: React.FC<Props> = ({ isActive, medicines, agencies, on
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {soonMeds.map(med => (
+            {(soonMeds || []).map(med => (
               <div key={med.id} className="bg-white p-4 rounded-2xl border border-amber-100 shadow-sm flex justify-between items-center">
                 <div>
                   <p className="font-bold text-slate-800">{med.name}</p>
@@ -416,7 +467,7 @@ const MedicineManagement: React.FC<Props> = ({ isActive, medicines, agencies, on
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {medicines.map(med => {
+            {(medicines || []).map(med => {
               const status = getExpiryStatus(med.expiryDate);
               const isExpired = status.label === 'Expired';
               return (
