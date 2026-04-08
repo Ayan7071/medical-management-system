@@ -1,176 +1,180 @@
 
-import React, { useMemo } from 'react';
-import { Medicine, Transaction, Patient } from '../types';
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, LineChart, Line
-} from 'recharts';
-import { TrendingUp, Package, Users, DollarSign, AlertCircle } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Credit, Patient } from '../types';
+import { Search, WalletCards, MessageCircle, CheckCircle2, Phone, Calendar, IndianRupee, Trash2, MinusCircle } from 'lucide-react';
 
 interface Props {
-  medicines: Medicine[];
-  transactions: Transaction[];
+  isActive?: boolean;
+  credits: Credit[];
   patients: Patient[];
+  onUpdateCredit: (id: string, updates: Partial<Credit>) => void;
+  onClearPaid: () => void;
+  onDeleteCredit: (id: string) => void;
+  onClearAll: () => void;
 }
 
-const Dashboard: React.FC<Props> = ({ medicines, transactions, patients }) => {
-  const stats = useMemo(() => {
-    const totalSales = transactions.reduce((acc, curr) => acc + curr.totalAmount, 0);
-    const totalProfit = transactions.reduce((acc, curr) => acc + curr.profit, 0);
-    const lowStock = medicines.filter(m => m.stock < 10).length;
-    const outOfStock = medicines.filter(m => m.stock === 0).length;
-    const potentialProfit = medicines.reduce((acc, curr) => acc + (curr.stock * (curr.mrp - curr.costPrice)), 0);
+const CreditManagement: React.FC<Props> = ({ isActive, credits, patients, onUpdateCredit, onClearPaid, onDeleteCredit, onClearAll }) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filter, setFilter] = useState<'all' | 'pending' | 'paid'>('pending');
 
-    return { totalSales, totalProfit, lowStock, outOfStock, potentialProfit };
-  }, [medicines, transactions]);
+  const searchInputRef = React.useRef<HTMLInputElement>(null);
 
-  const salesData = useMemo(() => {
-    // Group transactions by date (last 7 days)
-    const last7Days = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      return d.toISOString().split('T')[0];
-    }).reverse();
+  React.useEffect(() => {
+    if (isActive && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [isActive]);
 
-    return last7Days.map(date => ({
-      name: date,
-      amount: transactions.filter(t => t.date.startsWith(date)).reduce((acc, curr) => acc + curr.totalAmount, 0)
-    }));
-  }, [transactions]);
+  const filteredCredits = useMemo(() => {
+    return credits.filter(c => {
+      const patient = patients.find(p => p.id === c.patientId);
+      const matchesSearch = patient?.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                           patient?.phone.includes(searchTerm);
+      const matchesStatus = filter === 'all' || c.status === filter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [credits, patients, searchTerm, filter]);
 
-  const expiryAlerts = useMemo(() => {
-    const today = new Date();
-    const currentMonth = today.getMonth() + 1;
-    const currentYear = today.getFullYear();
+  const sendReminder = (credit: Credit) => {
+    const patient = patients.find(p => p.id === credit.patientId);
+    if (!patient) return;
+    
+    const message = `Hello ${patient.name}, this is a reminder from Kranti Medical regarding a pending payment of ₹${credit.amount} from your visit on ${new Date(credit.date).toLocaleDateString()}. Please settle this at your earliest convenience. Thank you!`;
+    const encodedMsg = encodeURIComponent(message);
+    window.open(`https://wa.me/${patient.phone.replace(/\D/g, '')}?text=${encodedMsg}`, '_blank');
+  };
 
-    return medicines.filter(med => {
-      if (!med.expiryDate.includes('/')) return false;
-      const [m, y] = med.expiryDate.split('/').map(Number);
-      
-      // Already expired
-      if (y < currentYear || (y === currentYear && m < currentMonth)) return true;
-      
-      // Expiring this month or next month (Alert)
-      if (y === currentYear && (m === currentMonth || m === currentMonth + 1)) return true;
-      if (y === currentYear + 1 && currentMonth === 12 && m === 1) return true;
-
-      return false;
-    }).map(med => {
-      const [m, y] = med.expiryDate.split('/').map(Number);
-      const isExpired = y < currentYear || (y === currentYear && m < currentMonth);
-      const isThisMonth = y === currentYear && m === currentMonth;
-      return { ...med, isExpired, isThisMonth };
-    }).sort((a, b) => (a.isExpired === b.isExpired ? 0 : a.isExpired ? -1 : 1));
-  }, [medicines]);
-
-  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'];
+  const totals = useMemo(() => {
+    return credits.reduce((acc, curr) => {
+      if (curr.status === 'pending') acc.pending += curr.amount;
+      else acc.collected += curr.amount;
+      return acc;
+    }, { pending: 0, collected: 0 });
+  }, [credits]);
 
   return (
-    <div className="space-y-8">
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {[
-          { label: 'Total Revenue', value: `₹${stats.totalSales.toLocaleString()}`, icon: DollarSign, color: 'text-blue-600', bg: 'bg-blue-50' },
-          { label: 'Total Profit Earned', value: `₹${stats.totalProfit.toLocaleString()}`, icon: TrendingUp, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-          { label: 'Stock Profit Value', value: `₹${stats.potentialProfit.toLocaleString()}`, icon: Package, color: 'text-amber-600', bg: 'bg-amber-50' },
-          { label: 'Out of Stock', value: stats.outOfStock, icon: AlertCircle, color: 'text-rose-600', bg: 'bg-rose-50' },
-        ].map((item, i) => (
-          <div key={i} className="stat-card">
-            <div>
-              <p className="text-sm font-medium text-slate-500">{item.label}</p>
-              <h3 className="text-2xl font-bold text-slate-800 mt-1">{item.value}</h3>
-            </div>
-            <div className={`${item.bg} ${item.color} p-3 rounded-xl`}>
-              <item.icon size={24} />
-            </div>
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-800">Credit (Udhari) Ledger</h2>
+          <p className="text-slate-500">Track pending payments and send reminders</p>
+        </div>
+        
+        <div className="flex items-center gap-3">
+          <div className="flex bg-white p-1 rounded-xl border border-slate-200">
+            <button onClick={() => setFilter('all')} className={`px-4 py-1.5 text-xs font-bold rounded-lg ${filter === 'all' ? 'bg-slate-600 text-white' : 'text-slate-500'}`}>All</button>
+            <button onClick={() => setFilter('pending')} className={`px-4 py-1.5 text-xs font-bold rounded-lg ${filter === 'pending' ? 'bg-amber-600 text-white' : 'text-slate-500'}`}>Pending</button>
+            <button onClick={() => setFilter('paid')} className={`px-4 py-1.5 text-xs font-bold rounded-lg ${filter === 'paid' ? 'bg-emerald-600 text-white' : 'text-slate-500'}`}>Paid</button>
           </div>
-        ))}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <input 
+              ref={searchInputRef}
+              placeholder="Search by name/phone..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              className="pl-10 pr-4 py-2.5 bg-white border rounded-xl text-sm w-64 focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
       </div>
 
-      {/* Expiry Alerts Section */}
-      {expiryAlerts.length > 0 && (
-        <div className="card border-rose-100 bg-rose-50/30">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="text-rose-600" size={24} />
-              <h3 className="text-lg font-bold text-slate-800 tracking-tight">Expiry Alerts (Expired & Soon)</h3>
-            </div>
-            <span className="px-3 py-1 bg-rose-100 text-rose-600 rounded-full text-xs font-bold uppercase tracking-wider">
-              {expiryAlerts.length} Alerts
-            </span>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-amber-50 border border-amber-100 p-6 rounded-2xl flex items-center justify-between shadow-sm">
+          <div>
+            <p className="text-xs font-bold text-amber-700 uppercase tracking-widest mb-1">Total Outstanding</p>
+            <h3 className="text-3xl font-black text-amber-800 flex items-center gap-1"><IndianRupee size={24} /> {totals.pending.toLocaleString()}</h3>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {expiryAlerts.slice(0, 6).map(med => (
-              <div key={med.id} className={`p-4 rounded-2xl border ${med.isExpired ? 'bg-white border-rose-200' : 'bg-white border-amber-200'} shadow-sm`}>
-                <div className="flex justify-between items-start mb-2">
-                  <h4 className="font-bold text-slate-800 truncate max-w-[150px]">{med.name}</h4>
-                  <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase ${med.isExpired ? 'bg-rose-100 text-rose-600' : 'bg-amber-100 text-amber-600'}`}>
-                    {med.isExpired ? 'Expired' : 'Soon'}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <div>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Expiry Date</p>
-                    <p className={`text-sm font-black ${med.isExpired ? 'text-rose-600' : 'text-amber-600'}`}>{med.expiryDate}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Stock</p>
-                    <p className="text-sm font-black text-slate-800">{med.stock} Units</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-          {expiryAlerts.length > 6 && (
-            <p className="mt-4 text-center text-xs text-slate-500 font-medium italic">And {expiryAlerts.length - 6} more medicines expiring...</p>
-          )}
+          <div className="bg-amber-100 p-4 rounded-2xl text-amber-600"><WalletCards size={32} /></div>
         </div>
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Sales Chart */}
-        <div className="lg:col-span-2 card">
-          <h3 className="text-lg font-bold text-slate-800 mb-6">Recent Sales Trend</h3>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={salesData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#fff', borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                  itemStyle={{ color: '#3b82f6', fontWeight: 600 }}
-                />
-                <Line type="monotone" dataKey="amount" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} />
-              </LineChart>
-            </ResponsiveContainer>
+        <div className="bg-emerald-50 border border-emerald-100 p-6 rounded-2xl flex items-center justify-between shadow-sm relative group">
+          <div>
+            <p className="text-xs font-bold text-emerald-700 uppercase tracking-widest mb-1">Total Collected</p>
+            <h3 className="text-3xl font-black text-emerald-800 flex items-center gap-1"><IndianRupee size={24} /> {totals.collected.toLocaleString()}</h3>
+          </div>
+          <div className="flex flex-col items-end gap-2">
+            <div className="bg-emerald-100 p-3 rounded-xl text-emerald-600"><CheckCircle2 size={24} /></div>
+            <button 
+              onClick={onClearPaid}
+              className="p-2 bg-rose-50 text-rose-500 rounded-full hover:bg-rose-100 transition-colors shadow-sm"
+              title="Reset Collected Amount to 0"
+            >
+              <MinusCircle size={20} />
+            </button>
           </div>
         </div>
+      </div>
 
-        {/* Quick Inventory Summary */}
-        <div className="card">
-          <h3 className="text-lg font-bold text-slate-800 mb-6">Stock Status</h3>
-          <div className="space-y-4">
-            {medicines.slice(0, 5).map(med => (
-              <div key={med.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
-                <div>
-                  <p className="text-sm font-semibold text-slate-800">{med.name}</p>
-                  <p className="text-xs text-slate-500">{med.category} • {med.batchNumber || 'No Batch'}</p>
-                </div>
-                <div className="text-right">
-                  <p className={`text-sm font-bold ${med.stock < 10 ? 'text-rose-500' : 'text-slate-800'}`}>{med.stock}</p>
-                  <p className="text-[10px] uppercase tracking-wider text-slate-400 font-medium">Qty</p>
-                </div>
-              </div>
-            ))}
-            {medicines.length === 0 && <p className="text-center text-slate-400 py-10">No medicines added yet</p>}
-            {medicines.length > 5 && <button className="w-full text-center text-sm text-blue-600 font-medium py-2">View All Inventory</button>}
-          </div>
+      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead className="bg-slate-50 border-b">
+              <tr>
+                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase">Patient</th>
+                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase">Amount</th>
+                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase">Date</th>
+                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase">Status</th>
+                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {filteredCredits.map(c => {
+                const patient = patients.find(p => p.id === c.patientId);
+                return (
+                  <tr key={c.id} className="hover:bg-slate-50/50 group">
+                    <td className="px-6 py-4">
+                      <p className="font-bold text-slate-800">{patient?.name || 'Unknown Patient'}</p>
+                      <p className="text-xs text-slate-500 font-medium flex items-center gap-1"><Phone size={10} /> {patient?.phone}</p>
+                    </td>
+                    <td className="px-6 py-4 font-black text-slate-800">₹{c.amount}</td>
+                    <td className="px-6 py-4">
+                      <p className="text-xs font-bold text-slate-500 flex items-center gap-1"><Calendar size={12} /> {new Date(c.date).toLocaleDateString()}</p>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase border ${c.status === 'pending' ? 'bg-amber-50 text-amber-600 border-amber-100' : 'bg-emerald-50 text-emerald-600 border-emerald-100'}`}>
+                        {c.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        {c.status === 'pending' && (
+                          <>
+                            <button onClick={() => sendReminder(c)} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg text-xs font-bold hover:bg-emerald-100">
+                              <MessageCircle size={14} /> WhatsApp
+                            </button>
+                            <button onClick={() => onUpdateCredit(c.id, { status: 'paid' })} className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700">
+                              Mark Paid
+                            </button>
+                          </>
+                        )}
+                        {c.status === 'paid' && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-emerald-500 font-bold text-xs flex items-center gap-1"><CheckCircle2 size={14} /> Settlement Complete</span>
+                            <button 
+                              onClick={() => onDeleteCredit(c.id)}
+                              className="p-1.5 text-slate-300 hover:text-rose-500 transition-colors"
+                              title="Delete Record"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+              {filteredCredits.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center text-slate-400">No records found matching your filters.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
   );
 };
 
-export default Dashboard;
+export default CreditManagement;
