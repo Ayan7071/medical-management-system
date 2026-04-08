@@ -5,6 +5,7 @@ import { Plus, Trash2, Edit2, AlertTriangle, Clock, Calculator, Percent, Sparkle
 import { ScannedMedicine, extractMedicineData } from '../services/geminiService';
 
 interface Props {
+  isActive?: boolean;
   medicines: Medicine[];
   agencies: Agency[];
   onAdd: (med: Medicine) => void;
@@ -12,7 +13,7 @@ interface Props {
   onDelete: (id: string) => void;
 }
 
-const MedicineManagement: React.FC<Props> = ({ medicines, agencies, onAdd, onUpdate, onDelete }) => {
+const MedicineManagement: React.FC<Props> = ({ isActive, medicines, agencies, onAdd, onUpdate, onDelete }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -20,6 +21,13 @@ const MedicineManagement: React.FC<Props> = ({ medicines, agencies, onAdd, onUpd
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const batchInputRef = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    if (isActive && isAdding && batchInputRef.current) {
+      batchInputRef.current.focus();
+    }
+  }, [isActive, isAdding]);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -85,36 +93,33 @@ const MedicineManagement: React.FC<Props> = ({ medicines, agencies, onAdd, onUpd
     setIsAdding(true);
   };
 
-  // Auto-calculate Cost Price Per Unit and Total Stock
-  const lastBasePrice = React.useRef(formData.basePrice);
-  const lastGstRate = React.useRef(formData.gstRate);
-
-  React.useEffect(() => {
-    const base = parseFloat(formData.basePrice) || 0;
-    const gst = parseFloat(formData.gstRate) || 0;
-    
-    const qty = parseInt(formData.quantity) || 0;
-    const unitsPkg = parseInt(formData.unitsPerPackage) || 0;
-    const total = qty * unitsPkg;
-
-    const updates: any = { totalStock: total.toString() };
-
-    // Only update costPrice if basePrice or gstRate actually changed
-    if (formData.basePrice !== lastBasePrice.current || formData.gstRate !== lastGstRate.current) {
-      const calculatedCost = base + (base * gst / 100);
-      updates.costPrice = calculatedCost.toFixed(2);
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => {
+      const newData = { ...prev, [field]: value };
       
-      // Also update MRP if it was empty or matching old cost
-      if (formData.mrp === '' || formData.mrp === lastBasePrice.current) {
-        updates.mrp = calculatedCost.toFixed(2);
+      // Auto-calculate logic
+      if (['basePrice', 'gstRate', 'quantity', 'unitsPerPackage'].includes(field)) {
+        const base = parseFloat(newData.basePrice) || 0;
+        const gst = parseFloat(newData.gstRate) || 0;
+        const qty = parseInt(newData.quantity) || 0;
+        const unitsPkg = parseInt(newData.unitsPerPackage) || 1;
+        
+        newData.totalStock = (qty * unitsPkg).toString();
+        
+        if (field === 'basePrice' || field === 'gstRate') {
+          const calculatedCost = base + (base * gst / 100);
+          newData.costPrice = calculatedCost.toFixed(2);
+          
+          // Only update MRP if it was empty or matching old cost
+          if (prev.mrp === '' || prev.mrp === prev.costPrice) {
+            newData.mrp = calculatedCost.toFixed(2);
+          }
+        }
       }
       
-      lastBasePrice.current = formData.basePrice;
-      lastGstRate.current = formData.gstRate;
-    }
-
-    setFormData(prev => ({ ...prev, ...updates }));
-  }, [formData.basePrice, formData.gstRate, formData.quantity, formData.unitsPerPackage]);
+      return newData;
+    });
+  };
 
   const getExpiryStatus = (expiryStr: string) => {
     if (!expiryStr.includes('/')) return { label: 'Unknown', color: 'bg-slate-100' };
@@ -236,16 +241,28 @@ const MedicineManagement: React.FC<Props> = ({ medicines, agencies, onAdd, onUpd
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="space-y-1">
               <label className="label-caps">Batch Number</label>
-              <input value={formData.batchNumber} onChange={e => setFormData({...formData, batchNumber: e.target.value})} className="input-field" placeholder="e.g. B-123" />
+              <input 
+                ref={batchInputRef}
+                value={formData.batchNumber} 
+                onChange={e => handleInputChange('batchNumber', e.target.value)} 
+                className="input-field" 
+                placeholder="e.g. B-123" 
+              />
             </div>
             <div className="md:col-span-2 space-y-1">
               <label className="label-caps">Medicine Name</label>
-              <input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="input-field" placeholder="Enter Full Medicine Name" />
+              <input 
+                required 
+                value={formData.name} 
+                onChange={e => handleInputChange('name', e.target.value)} 
+                className="input-field" 
+                placeholder="Enter Full Medicine Name" 
+              />
             </div>
 
             <div className="space-y-1">
               <label className="label-caps">Category</label>
-              <select value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} className="input-field">
+              <select value={formData.category} onChange={e => handleInputChange('category', e.target.value)} className="input-field">
                 <option value="Tablet">Tablet</option>
                 <option value="Capsule">Capsule</option>
                 <option value="Syrup">Syrup</option>
@@ -258,12 +275,12 @@ const MedicineManagement: React.FC<Props> = ({ medicines, agencies, onAdd, onUpd
 
             <div className="space-y-1">
               <label className="label-caps">Quantity (Strips)</label>
-              <input type="number" required value={formData.quantity} onChange={e => setFormData({...formData, quantity: e.target.value})} className="input-field" placeholder="1" />
+              <input type="number" required value={formData.quantity} onChange={e => handleInputChange('quantity', e.target.value)} className="input-field" placeholder="1" />
             </div>
 
             <div className="space-y-1">
               <label className="label-caps">Units / Strip</label>
-              <input type="number" required value={formData.unitsPerPackage} onChange={e => setFormData({...formData, unitsPerPackage: e.target.value})} className="input-field" placeholder="10" />
+              <input type="number" required value={formData.unitsPerPackage} onChange={e => handleInputChange('unitsPerPackage', e.target.value)} className="input-field" placeholder="10" />
             </div>
 
             <div className="space-y-1">
@@ -277,14 +294,14 @@ const MedicineManagement: React.FC<Props> = ({ medicines, agencies, onAdd, onUpd
             <div className="bg-blue-50/50 p-6 rounded-3xl md:col-span-4 grid grid-cols-1 md:grid-cols-4 gap-6 border border-blue-100/50">
               <div className="space-y-1">
                 <label className="text-xs font-black text-blue-600 uppercase tracking-widest ml-1 flex items-center gap-1"><Calculator size={12} /> Unit Base Price</label>
-                <input type="number" step="0.01" required value={formData.basePrice} onChange={e => setFormData({...formData, basePrice: e.target.value})} className="w-full px-5 py-4 bg-white border border-blue-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-black text-blue-600" placeholder="0.00" />
+                <input type="number" step="0.01" required value={formData.basePrice} onChange={e => handleInputChange('basePrice', e.target.value)} className="w-full px-5 py-4 bg-white border border-blue-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-black text-blue-600" placeholder="0.00" />
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-black text-blue-600 uppercase tracking-widest ml-1 flex items-center gap-1"><Percent size={12} /> GST %</label>
                 <input 
                   type="number" 
                   value={formData.gstRate} 
-                  onChange={e => setFormData({...formData, gstRate: e.target.value})} 
+                  onChange={e => handleInputChange('gstRate', e.target.value)} 
                   className="w-full px-5 py-4 bg-white border border-blue-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-black text-blue-600" 
                   placeholder="12" 
                 />
@@ -297,7 +314,7 @@ const MedicineManagement: React.FC<Props> = ({ medicines, agencies, onAdd, onUpd
                     type="number" 
                     step="0.01" 
                     value={formData.costPrice} 
-                    onChange={e => setFormData({...formData, costPrice: e.target.value})} 
+                    onChange={e => handleInputChange('costPrice', e.target.value)} 
                     className="w-full pl-10 pr-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-slate-400 outline-none font-black text-slate-700" 
                     placeholder="0.00" 
                   />
@@ -305,23 +322,23 @@ const MedicineManagement: React.FC<Props> = ({ medicines, agencies, onAdd, onUpd
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-black text-emerald-600 uppercase tracking-widest ml-1">Unit MRP</label>
-                <input type="number" step="0.01" required value={formData.mrp} onChange={e => setFormData({...formData, mrp: e.target.value})} className="w-full px-5 py-4 bg-white border border-emerald-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none font-black text-emerald-600" placeholder="0.00" />
+                <input type="number" step="0.01" required value={formData.mrp} onChange={e => handleInputChange('mrp', e.target.value)} className="w-full px-5 py-4 bg-white border border-emerald-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none font-black text-emerald-600" placeholder="0.00" />
               </div>
             </div>
 
             <div className="md:col-span-2 space-y-1">
               <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Expiry (MM/YYYY)</label>
               <div className="flex gap-2">
-                <select value={formData.expMonth} onChange={e => setFormData({...formData, expMonth: e.target.value})} className="flex-1 px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold">
+                <select value={formData.expMonth} onChange={e => handleInputChange('expMonth', e.target.value)} className="flex-1 px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold">
                   {months.map((m, i) => <option key={m} value={(i+1).toString().padStart(2, '0')}>{m}</option>)}
                 </select>
-                <input type="number" value={formData.expYear} onChange={e => setFormData({...formData, expYear: e.target.value})} className="flex-1 px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold" placeholder="2026" />
+                <input type="number" value={formData.expYear} onChange={e => handleInputChange('expYear', e.target.value)} className="flex-1 px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold" placeholder="2026" />
               </div>
             </div>
 
             <div className="md:col-span-2 space-y-1">
               <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Agency</label>
-              <select value={formData.agencyId} onChange={e => setFormData({...formData, agencyId: e.target.value})} className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold">
+              <select value={formData.agencyId} onChange={e => handleInputChange('agencyId', e.target.value)} className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold">
                 <option value="">Direct / None</option>
                 {agencies.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
