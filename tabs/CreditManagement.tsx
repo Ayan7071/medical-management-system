@@ -4,6 +4,7 @@ import { Credit, Patient } from '../types';
 import { Search, WalletCards, MessageCircle, CheckCircle2, Phone, Calendar, IndianRupee, Trash2, MinusCircle } from 'lucide-react';
 
 interface Props {
+  isActive?: boolean;
   credits: Credit[];
   patients: Patient[];
   onUpdateCredit: (id: string, updates: Partial<Credit>) => void;
@@ -12,9 +13,17 @@ interface Props {
   onClearAll: () => void;
 }
 
-const CreditManagement: React.FC<Props> = ({ credits, patients, onUpdateCredit, onClearPaid, onDeleteCredit, onClearAll }) => {
+const CreditManagement: React.FC<Props> = ({ isActive, credits, patients, onUpdateCredit, onClearPaid, onDeleteCredit, onClearAll }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState<'all' | 'pending' | 'paid'>('pending');
+
+  const searchInputRef = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    if (isActive && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [isActive]);
 
   const filteredCredits = useMemo(() => {
     return credits.filter(c => {
@@ -60,6 +69,7 @@ const CreditManagement: React.FC<Props> = ({ credits, patients, onUpdateCredit, 
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input 
+              ref={searchInputRef}
               placeholder="Search by name/phone..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
