@@ -4,15 +4,17 @@ import { Patient, Medicine, Transaction, Credit } from '../types';
 import { Search, ShoppingCart, Trash2, Users, IndianRupee, Minus, Plus } from 'lucide-react';
 
 interface Props {
+  isActive?: boolean;
   patients: Patient[];
   medicines: Medicine[];
   credits: Credit[];
+  transactions: Transaction[];
   onAddPatient: (p: Patient) => void;
   onDeletePatient: (id: string) => void;
   onAddTransaction: (t: Transaction) => void;
 }
 
-const PatientManagement: React.FC<Props> = ({ patients, medicines, credits, onAddPatient, onDeletePatient, onAddTransaction }) => {
+const PatientManagement: React.FC<Props> = ({ isActive, patients, medicines, credits, transactions, onAddPatient, onDeletePatient, onAddTransaction }) => {
   const [activeView, setActiveView] = useState<'list' | 'new-sale' | 'details'>('list');
   const [searchPatient, setSearchPatient] = useState('');
   const [medSearch, setMedSearch] = useState('');
@@ -21,6 +23,15 @@ const PatientManagement: React.FC<Props> = ({ patients, medicines, credits, onAd
   const [newPatientData, setNewPatientData] = useState({ name: '', phone: '' });
   const [paidAmount, setPaidAmount] = useState<string>('');
   const [isCreditSale, setIsCreditSale] = useState(false);
+  const [customPayable, setCustomPayable] = useState<string>('');
+
+  const patientNameRef = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    if (isActive && activeView === 'list' && patientNameRef.current) {
+      patientNameRef.current.focus();
+    }
+  }, [isActive, activeView]);
 
   const filteredMedicines = useMemo(() => 
     medicines.filter(m => m.name.toLowerCase().includes(medSearch.toLowerCase()))
@@ -32,6 +43,10 @@ const PatientManagement: React.FC<Props> = ({ patients, medicines, credits, onAd
       return acc + (med ? med.mrp * item.quantity : 0);
     }, 0)
   , [cart, medicines]);
+
+  React.useEffect(() => {
+    setCustomPayable(cartTotal.toString());
+  }, [cartTotal]);
 
   const addToCart = (medId: string) => {
     const med = medicines.find(m => m.id === medId);
@@ -73,18 +88,19 @@ const PatientManagement: React.FC<Props> = ({ patients, medicines, credits, onAd
       return { medicineId: item.medicineId, quantity: item.quantity, price: linePrice };
     });
 
+    const finalTotal = parseFloat(customPayable) || totalAmount;
     const paid = parseFloat(paidAmount) || 0;
-    const credit = isCreditSale ? Math.max(0, totalAmount - paid) : 0;
+    const credit = isCreditSale ? Math.max(0, finalTotal - paid) : 0;
 
     onAddTransaction({
       id: Math.random().toString(36).substr(2, 9),
       patientId: selectedPatientId,
       medicines: saleMeds,
-      totalAmount,
-      paidAmount: isCreditSale ? paid : totalAmount,
+      totalAmount: finalTotal,
+      paidAmount: isCreditSale ? paid : finalTotal,
       creditAmount: credit,
       totalCost,
-      profit: totalAmount - totalCost,
+      profit: finalTotal - totalCost,
       date: new Date().toISOString(),
       isCredit: isCreditSale && credit > 0
     });
@@ -103,6 +119,10 @@ const PatientManagement: React.FC<Props> = ({ patients, medicines, credits, onAd
   const patientCredits = useMemo(() => 
     credits.filter(c => c.patientId === selectedPatientId)
   , [credits, selectedPatientId]);
+
+  const patientTransactions = useMemo(() => 
+    transactions.filter(t => t.patientId === selectedPatientId)
+  , [transactions, selectedPatientId]);
 
   const totalPendingCredit = useMemo(() => 
     patientCredits.filter(c => c.status === 'pending').reduce((acc, c) => acc + c.amount, 0)
@@ -175,7 +195,14 @@ const PatientManagement: React.FC<Props> = ({ patients, medicines, credits, onAd
           <div className="bg-white p-8 rounded-[2rem] border shadow-sm h-fit">
             <h3 className="text-xl font-bold mb-6">Quick Register</h3>
             <form onSubmit={(e) => { e.preventDefault(); onAddPatient({ id: Math.random().toString(36).substr(2, 9), ...newPatientData, createdAt: new Date().toISOString() }); setNewPatientData({name: '', phone: ''}); }} className="space-y-4">
-              <input required placeholder="Patient Name" value={newPatientData.name} onChange={e => setNewPatientData({...newPatientData, name: e.target.value})} className="w-full px-5 py-4 bg-slate-50 border rounded-2xl" />
+              <input 
+                ref={patientNameRef}
+                required 
+                placeholder="Patient Name" 
+                value={newPatientData.name} 
+                onChange={e => setNewPatientData({...newPatientData, name: e.target.value})} 
+                className="w-full px-5 py-4 bg-slate-50 border rounded-2xl" 
+              />
               <input required placeholder="Phone Number" value={newPatientData.phone} onChange={e => setNewPatientData({...newPatientData, phone: e.target.value})} className="w-full px-5 py-4 bg-slate-50 border rounded-2xl" />
               <button type="submit" className="w-full py-4 bg-slate-800 text-white font-bold rounded-2xl shadow-xl">Add Patient</button>
             </form>
@@ -196,6 +223,51 @@ const PatientManagement: React.FC<Props> = ({ patients, medicines, credits, onAd
             <div className="bg-rose-50 border border-rose-100 p-6 rounded-3xl text-center min-w-[200px]">
               <p className="text-[10px] font-black text-rose-400 uppercase tracking-widest mb-1">Total Pending Udhari</p>
               <p className="text-3xl font-black text-rose-600">₹{totalPendingCredit.toLocaleString()}</p>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-[2.5rem] border overflow-hidden shadow-sm">
+            <div className="p-6 border-b bg-slate-50/50">
+              <h4 className="font-black text-slate-400 uppercase tracking-widest text-xs">Purchase History (Medicines Sold)</h4>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-slate-50/50">
+                    <th className="px-8 py-5 text-xs font-black text-slate-400 uppercase">Date</th>
+                    <th className="px-8 py-5 text-xs font-black text-slate-400 uppercase">Medicines</th>
+                    <th className="px-8 py-5 text-xs font-black text-slate-400 uppercase text-right">Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {patientTransactions.map(tx => (
+                    <tr key={tx.id} className="hover:bg-slate-50/30 transition-colors">
+                      <td className="px-8 py-5 font-bold text-slate-600">
+                        {new Date(tx.date).toLocaleDateString()}
+                        <p className="text-[10px] text-slate-400 mt-0.5">{new Date(tx.date).toLocaleTimeString()}</p>
+                      </td>
+                      <td className="px-8 py-5">
+                        <div className="space-y-1">
+                          {tx.medicines.map((m, idx) => {
+                            const med = medicines.find(item => item.id === m.medicineId);
+                            return (
+                              <p key={idx} className="text-sm font-bold text-slate-800">
+                                {med?.name || 'Unknown'} <span className="text-slate-400 font-medium">x {m.quantity}</span>
+                              </p>
+                            );
+                          })}
+                        </div>
+                      </td>
+                      <td className="px-8 py-5 text-right font-black text-emerald-600 text-lg">₹{tx.totalAmount}</td>
+                    </tr>
+                  ))}
+                  {patientTransactions.length === 0 && (
+                    <tr>
+                      <td colSpan={3} className="px-8 py-16 text-center text-slate-400 font-bold italic">No purchase history found.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
 
@@ -320,7 +392,15 @@ const PatientManagement: React.FC<Props> = ({ patients, medicines, credits, onAd
 
               <div className="flex items-center justify-between text-2xl font-black text-slate-800 px-2">
                 <span>Payable:</span>
-                <span className="text-emerald-600">₹{cartTotal.toLocaleString()}</span>
+                <div className="flex items-center gap-1 text-emerald-600">
+                  <span>₹</span>
+                  <input 
+                    type="number" 
+                    value={customPayable} 
+                    onChange={e => setCustomPayable(e.target.value)}
+                    className="w-32 bg-emerald-50 border-none text-right focus:ring-0 rounded-lg p-1"
+                  />
+                </div>
               </div>
               <button disabled={!selectedPatientId || cart.length === 0} onClick={handleCheckout} className="w-full py-5 bg-blue-600 text-white font-black rounded-2xl shadow-2xl shadow-blue-500/30 hover:bg-blue-700 active:scale-95 transition-all">
                 Complete Sale
