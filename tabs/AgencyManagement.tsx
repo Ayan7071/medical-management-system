@@ -29,6 +29,7 @@ const AgencyManagement: React.FC<Props> = ({
   const [newAgency, setNewAgency] = useState({ name: '', contact: '', address: '' });
   const [scannedItems, setScannedItems] = useState<BillItem[]>([]);
   const [selectedAgencyIdForScan, setSelectedAgencyIdForScan] = useState<string>('');
+  const [billDateForScan, setBillDateForScan] = useState(new Date().toISOString().split('T')[0]);
   
   // Payment states
   const [payingBillId, setPayingBillId] = useState<string | null>(null);
@@ -55,7 +56,7 @@ const AgencyManagement: React.FC<Props> = ({
   }, [isActive, activeSubTab, isAddingAgency]);
 
   const totalOutstanding = useMemo(() => 
-    agencyBills.reduce((acc, curr) => acc + curr.pendingAmount, 0), 
+    (agencyBills || []).reduce((acc, curr) => acc + curr.pendingAmount, 0), 
     [agencyBills]
   );
 
@@ -164,9 +165,27 @@ const AgencyManagement: React.FC<Props> = ({
       };
     });
 
+    // Also create an AgencyBill record if an agency is selected
+    if (selectedAgencyIdForScan) {
+      const totalBillAmount = scannedItems.reduce((acc, item) => acc + (Number(item.costPrice) * Number(item.quantity)), 0);
+      const newBill: AgencyBill = {
+        id: Math.random().toString(36).substr(2, 9),
+        agencyId: selectedAgencyIdForScan,
+        billNumber: `SCAN-${Date.now().toString().slice(-6)}`,
+        date: billDateForScan,
+        totalAmount: totalBillAmount,
+        paidAmount: 0,
+        pendingAmount: totalBillAmount,
+        notes: `Auto-generated from AI Scan (${newMeds.length} items)`
+      };
+      onAddAgencyBill(newBill);
+    }
+
     onBatchAddMedicines(newMeds);
     setScannedItems([]);
-    alert(`Successfully added ${newMeds.length} items to inventory!`);
+    setSelectedAgencyIdForScan('');
+    setBillDateForScan(new Date().toISOString().split('T')[0]);
+    alert(`Successfully added ${newMeds.length} items to inventory${selectedAgencyIdForScan ? ' and recorded the bill' : ''}!`);
   };
 
   const handleAddAgency = (e: React.FormEvent) => {
@@ -412,8 +431,8 @@ const AgencyManagement: React.FC<Props> = ({
            )}
 
            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {agencies.map(agn => {
-              const pending = agencyBills
+            {(agencies || []).map(agn => {
+              const pending = (agencyBills || [])
                 .filter(b => b.agencyId === agn.id)
                 .reduce((acc, curr) => acc + curr.pendingAmount, 0);
 
@@ -470,7 +489,7 @@ const AgencyManagement: React.FC<Props> = ({
                 </div>
               );
             })}
-            {agencies.length === 0 && (
+            {agencies && agencies.length === 0 && (
                 <div className="md:col-span-3 py-20 text-center text-slate-400 font-medium">No agencies found. Add your first supplier to start tracking bills.</div>
             )}
            </div>
@@ -493,8 +512,8 @@ const AgencyManagement: React.FC<Props> = ({
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                        {agencyBills.map(bill => {
-                            const agency = agencies.find(a => a.id === bill.agencyId);
+                        {(agencyBills || []).map(bill => {
+                            const agency = (agencies || []).find(a => a.id === bill.agencyId);
                             const isPaying = payingBillId === bill.id;
                             return (
                                 <tr key={bill.id} className={`transition-colors ${isPaying ? 'bg-blue-50/50' : 'hover:bg-slate-50/30'}`}>
@@ -577,6 +596,15 @@ const AgencyManagement: React.FC<Props> = ({
               </div>
             </div>
             <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 bg-blue-500 border border-blue-400 rounded-lg px-2">
+                <Calendar size={14} className="text-blue-100" />
+                <input 
+                  type="date" 
+                  value={billDateForScan}
+                  onChange={(e) => setBillDateForScan(e.target.value)}
+                  className="bg-transparent text-white text-xs py-1.5 outline-none"
+                />
+              </div>
               <select 
                 value={selectedAgencyIdForScan} 
                 onChange={(e) => setSelectedAgencyIdForScan(e.target.value)}
