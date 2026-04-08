@@ -26,12 +26,12 @@ const StockView: React.FC<Props> = ({ isActive, medicines, patients, onUpdate, o
     }
   }, [isActive]);
 
-  const filteredMedicines = medicines.filter(m => 
+  const filteredMedicines = (medicines || []).filter(m => 
     m.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const selectedMed = useMemo(() => 
-    medicines.find(m => m.id === selectedMedId), 
+    (medicines || []).find(m => m.id === selectedMedId), 
     [medicines, selectedMedId]
   );
 
@@ -112,7 +112,7 @@ const StockView: React.FC<Props> = ({ isActive, medicines, patients, onUpdate, o
                 
                 {quickSearch && !selectedMedId && (
                   <div className="absolute z-20 w-full mt-3 bg-slate-800 border-2 border-slate-700 rounded-[2rem] shadow-2xl max-h-64 overflow-y-auto overflow-hidden animate-in fade-in slide-in-from-top-2">
-                    {medicines
+                    {(medicines || [])
                       .filter(m => m.name.toLowerCase().includes(quickSearch.toLowerCase()))
                       .map(m => (
                         <div key={m.id} className="w-full flex items-center hover:bg-slate-700 border-b border-slate-700 last:border-0">
@@ -236,7 +236,7 @@ const StockView: React.FC<Props> = ({ isActive, medicines, patients, onUpdate, o
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {filteredMedicines.map(med => (
+            {(filteredMedicines || []).map(med => (
               <tr key={med.id} className="table-row">
                 <td className="table-td font-mono text-xs text-slate-500">{med.batchNumber || '-'}</td>
                 <td className="table-td"><p className="text-lg font-bold text-slate-800">{med.name}</p></td>
