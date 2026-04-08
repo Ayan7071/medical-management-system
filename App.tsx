@@ -40,33 +40,57 @@ const App: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   const [medicines, setMedicines] = useState<Medicine[]>(() => {
-    const saved = localStorage.getItem('kranti_medicines');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem('kranti_medicines');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
   });
   
   const [patients, setPatients] = useState<Patient[]>(() => {
-    const saved = localStorage.getItem('kranti_patients');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem('kranti_patients');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
   });
   
   const [transactions, setTransactions] = useState<Transaction[]>(() => {
-    const saved = localStorage.getItem('kranti_transactions');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem('kranti_transactions');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
   });
   
   const [agencies, setAgencies] = useState<Agency[]>(() => {
-    const saved = localStorage.getItem('kranti_agencies');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem('kranti_agencies');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
   });
 
   const [credits, setCredits] = useState<Credit[]>(() => {
-    const saved = localStorage.getItem('kranti_credits');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem('kranti_credits');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
   });
 
   const [agencyBills, setAgencyBills] = useState<AgencyBill[]>(() => {
-    const saved = localStorage.getItem('kranti_agency_bills');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem('kranti_agency_bills');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
   });
 
   useEffect(() => {
@@ -164,26 +188,26 @@ const App: React.FC = () => {
   const deleteMedicine = (id: string) => {
     console.log("Attempting to delete medicine:", id, typeof id);
     setMedicines(prev => {
-      const filtered = prev.filter(m => String(m.id) !== String(id));
-      console.log(`Medicine Delete: Before=${prev.length}, After=${filtered.length}`);
+      const filtered = (prev || []).filter(m => String(m.id) !== String(id));
+      console.log(`Medicine Delete: Before=${(prev || []).length}, After=${filtered.length}`);
       return filtered;
     });
   };
 
-  const addPatient = (pat: Patient) => setPatients(prev => [...prev, pat]);
+  const addPatient = (pat: Patient) => setPatients(prev => [...(prev || []), pat]);
   const deletePatient = (id: string) => {
     console.log("Attempting to delete patient:", id, typeof id);
     setPatients(prev => {
-      const filtered = prev.filter(p => String(p.id) !== String(id));
-      console.log(`Patient Delete: Before=${prev.length}, After=${filtered.length}`);
+      const filtered = (prev || []).filter(p => String(p.id) !== String(id));
+      console.log(`Patient Delete: Before=${(prev || []).length}, After=${filtered.length}`);
       return filtered;
     });
   };
 
   const addTransaction = (txn: Transaction) => {
-    setTransactions(prev => [txn, ...prev]);
+    setTransactions(prev => [txn, ...(prev || [])]);
     txn.medicines.forEach(item => {
-      setMedicines(prev => prev.map(m => {
+      setMedicines(prev => (prev || []).map(m => {
         if (m.id === item.medicineId) {
           return { ...m, stock: m.stock - item.quantity, sold: m.sold + item.quantity };
         }
@@ -214,30 +238,30 @@ const App: React.FC = () => {
   const deleteTransaction = (id: string) => {
     console.log("Attempting to delete transaction:", id, typeof id);
     setTransactions(prev => {
-      const filtered = prev.filter(t => String(t.id) !== String(id));
-      console.log(`Transaction Delete: Before=${prev.length}, After=${filtered.length}`);
+      const filtered = (prev || []).filter(t => String(t.id) !== String(id));
+      console.log(`Transaction Delete: Before=${(prev || []).length}, After=${filtered.length}`);
       return filtered;
     });
   };
 
-  const addAgency = (agn: Agency) => setAgencies(prev => [...prev, agn]);
+  const addAgency = (agn: Agency) => setAgencies(prev => [...(prev || []), agn]);
   const deleteAgency = (id: string) => {
     console.log("Attempting to delete agency:", id, typeof id);
     setAgencies(prev => {
-      const filtered = prev.filter(a => String(a.id) !== String(id));
-      console.log(`Agency Delete: Before=${prev.length}, After=${filtered.length}`);
+      const filtered = (prev || []).filter(a => String(a.id) !== String(id));
+      console.log(`Agency Delete: Before=${(prev || []).length}, After=${filtered.length}`);
       return filtered;
     });
-    setAgencyBills(prev => prev.filter(b => String(b.agencyId) !== String(id)));
+    setAgencyBills(prev => (prev || []).filter(b => String(b.agencyId) !== String(id)));
   };
 
   const updateCredit = (id: string, updates: Partial<Credit>) => {
-    setCredits(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+    setCredits(prev => (prev || []).map(c => c.id === id ? { ...c, ...updates } : c));
   };
 
   const deleteCredit = (id: string) => {
     if (window.confirm("Are you sure you want to delete this credit record?")) {
-      setCredits(prev => prev.filter(c => c.id !== id));
+      setCredits(prev => (prev || []).filter(c => c.id !== id));
     }
   };
 
@@ -245,16 +269,16 @@ const App: React.FC = () => {
     console.log("Attempting to clear paid credits...");
     if (window.confirm("Are you sure you want to clear all paid credit records? This will reset the 'Total Collected' amount to zero.")) {
       setCredits(prev => {
-        const filtered = prev.filter(c => c.status === 'pending');
-        console.log(`Paid credits cleared. Before=${prev.length}, After=${filtered.length}`);
+        const filtered = (prev || []).filter(c => c.status === 'pending');
+        console.log(`Paid credits cleared. Before=${(prev || []).length}, After=${filtered.length}`);
         return filtered;
       });
     }
   };
 
-  const addAgencyBill = (bill: AgencyBill) => setAgencyBills(prev => [bill, ...prev]);
+  const addAgencyBill = (bill: AgencyBill) => setAgencyBills(prev => [bill, ...(prev || [])]);
   const updateAgencyBill = (id: string, updates: Partial<AgencyBill>) => {
-    setAgencyBills(prev => prev.map(b => b.id === id ? { ...b, ...updates } : b));
+    setAgencyBills(prev => (prev || []).map(b => b.id === id ? { ...b, ...updates } : b));
   };
 
   const navItems = [
