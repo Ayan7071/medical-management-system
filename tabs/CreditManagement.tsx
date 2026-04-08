@@ -26,8 +26,8 @@ const CreditManagement: React.FC<Props> = ({ isActive, credits, patients, onUpda
   }, [isActive]);
 
   const filteredCredits = useMemo(() => {
-    return credits.filter(c => {
-      const patient = patients.find(p => p.id === c.patientId);
+    return (credits || []).filter(c => {
+      const patient = (patients || []).find(p => p.id === c.patientId);
       const matchesSearch = patient?.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                            patient?.phone.includes(searchTerm);
       const matchesStatus = filter === 'all' || c.status === filter;
@@ -36,7 +36,7 @@ const CreditManagement: React.FC<Props> = ({ isActive, credits, patients, onUpda
   }, [credits, patients, searchTerm, filter]);
 
   const sendReminder = (credit: Credit) => {
-    const patient = patients.find(p => p.id === credit.patientId);
+    const patient = (patients || []).find(p => p.id === credit.patientId);
     if (!patient) return;
     
     const message = `Hello ${patient.name}, this is a reminder from Kranti Medical regarding a pending payment of ₹${credit.amount} from your visit on ${new Date(credit.date).toLocaleDateString()}. Please settle this at your earliest convenience. Thank you!`;
@@ -45,7 +45,7 @@ const CreditManagement: React.FC<Props> = ({ isActive, credits, patients, onUpda
   };
 
   const totals = useMemo(() => {
-    return credits.reduce((acc, curr) => {
+    return (credits || []).reduce((acc, curr) => {
       if (curr.status === 'pending') acc.pending += curr.amount;
       else acc.collected += curr.amount;
       return acc;
@@ -118,8 +118,8 @@ const CreditManagement: React.FC<Props> = ({ isActive, credits, patients, onUpda
               </tr>
             </thead>
             <tbody className="divide-y">
-              {filteredCredits.map(c => {
-                const patient = patients.find(p => p.id === c.patientId);
+              {(filteredCredits || []).map(c => {
+                const patient = (patients || []).find(p => p.id === c.patientId);
                 return (
                   <tr key={c.id} className="hover:bg-slate-50/50 group">
                     <td className="px-6 py-4">
